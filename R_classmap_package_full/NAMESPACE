@@ -1,0 +1,44 @@
+
+import("ggplot2")
+import("e1071")
+import("gridExtra")
+import("rpart")
+importFrom("robustbase", "covMcd")
+importFrom("randomForest", "randomForest", "importance")
+importFrom("cellWise", "transfo", "truncPC")
+importFrom("cluster", "daisy")
+importFrom("grDevices", "adjustcolor", "rainbow")
+importFrom("graphics", "abline", "axis", "par", "rect", "title", "lines",
+           "plot")
+importFrom("stats", "coef", "cov", "dist", "mad", "mahalanobis",
+               "median", "pnorm", "prcomp", "qnorm", "sd", "predict",
+           "as.dist", "loess", "quantile")
+importFrom("kernlab", "stringdot", "kernelMatrix")
+
+export(makeKernel)
+export(makeFV)
+
+export(vcr.da.train)
+export(vcr.da.newdata)
+
+export(vcr.knn.train)
+export(vcr.knn.newdata)
+
+export(vcr.svm.train)
+export(vcr.svm.newdata)
+
+export(confmat.vcr)
+export(stackedplot)
+export(classmap)
+
+export(vcr.rpart.train)
+export(vcr.rpart.newdata)
+
+export(vcr.forest.train)
+export(vcr.forest.newdata)
+
+export(vcr.neural.train)
+export(vcr.neural.newdata)
+
+export(silplot)
+export(qresplot)

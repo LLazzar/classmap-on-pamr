@@ -1,0 +1,504 @@
+## ---- echo = FALSE------------------------------------------------------------
+knitr::opts_chunk$set(
+ fig.width  = 5 ,
+ fig.height = 3.5,
+ fig.align  = 'center'
+)
+oldpar <- list(mar = par()$mar, mfrow = par()$mfrow)
+
+## -----------------------------------------------------------------------------
+library("e1071")
+library("classmap")
+
+## -----------------------------------------------------------------------------
+set.seed(1)
+X <- matrix(rnorm(200 * 2), ncol = 2)
+X[1:100, ] <- X[1:100, ] + 2
+X[101:150, ] <- X[101:150, ] - 2
+y <- as.factor(c(rep("blue", 150), rep("red", 50))) # two classes
+table(y)
+dim(X) # 200 2
+length(y) # 200
+cols <- c("deepskyblue3", "red")
+col <- cols[as.numeric(y)]
+plot(X, col = col, pch = 19) 
+
+## -----------------------------------------------------------------------------
+dat <- data.frame(X = X, y = y)
+set.seed(1) 
+svmfit <- svm(y~., data = dat, scale = FALSE, kernel = "radial", cost = 10, gamma = 1, probability = TRUE)
+
+## -----------------------------------------------------------------------------
+names(svmfit)
+
+plot(svmfit$decision.values, col = cols[as.numeric(y)]); abline(h = 0)
+
+plot(svmfit, data = dat, X.2~X.1,  col = cols)
+
+## -----------------------------------------------------------------------------
+vcr.train <- vcr.svm.train(X, y, svfit = svmfit)
+
+## -----------------------------------------------------------------------------
+names(vcr.train)
+vcr.train$predint 
+vcr.train$pred[c(1:20, 151:170)]
+vcr.train$altint  
+vcr.train$altlab[c(1:20, 151:170)]
+
+## -----------------------------------------------------------------------------
+vcr.train$PAC[1:3] 
+summary(vcr.train$PAC)
+
+## -----------------------------------------------------------------------------
+vcr.train$fig[1:5, ] 
+
+## -----------------------------------------------------------------------------
+vcr.train$farness[1:5]
+summary(vcr.train$farness)
+
+## -----------------------------------------------------------------------------
+summary(vcr.train$ofarness)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcr.train, cutoff = 0.975)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcr.train)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcr.train, showClassNumbers = TRUE)
+
+## -----------------------------------------------------------------------------
+stackedplot(vcr.train, classCols = cols, separSize = 1.5,
+            minSize = 1, showLegend = TRUE, cutoff = 0.975,
+            main = "Stacked plot of SVM on artifical data")
+
+stplot <- stackedplot(vcr.train, classCols = cols, 
+                     separSize = 1.5, minSize = 1,
+                     main = "Stacked plot of SVM on artifical data")
+stackedplot(vcr.train, classCols = cols)
+
+## -----------------------------------------------------------------------------
+# pdf("Artif_SVM_silhouettes.pdf", width = 5.0, height = 4.6)
+silplot(vcr.train, classCols = cols, 
+        main = "Silhouette plot of SVM on artificial data") 
+# dev.off()
+
+## -----------------------------------------------------------------------------
+par(mfrow = c(1,1))
+classmap(vcr.train, 1, classCols = cols)
+classmap(vcr.train, 2, classCols = cols)
+par(oldpar)
+
+## -----------------------------------------------------------------------------
+Xnew <- X[c(1:25, 151:175), ]; dim(Xnew) # 50 200
+ynew <- y
+ynew[c(21:25, 171:175)] <- NA
+(ynew <- ynew[c(1:25, 151:175)]) 
+length(ynew) # 50
+
+## -----------------------------------------------------------------------------
+vcr.test <- vcr.svm.newdata(Xnew, ynew, vcr.train)
+
+## -----------------------------------------------------------------------------
+vcr.test$predint 
+length(vcr.test$predint) 
+vcr.test$altint 
+length(vcr.test$altint) 
+vcr.test$PAC 
+length(vcr.test$PAC) 
+vcr.test$farness 
+length(vcr.test$farness) 
+vcr.test$ofarness # This exists even for cases whose true label is NA:
+length(vcr.test$ofarness) 
+
+## -----------------------------------------------------------------------------
+plot(vcr.test$yintnew[c(1:20, 26:45)],
+     vcr.train$yint[c(1:20, 151:170)]); abline(0, 1)
+plot(vcr.test$predint[c(1:20, 26:45)],
+     vcr.train$predint[c(1:20, 151:170)]); abline(0, 1)
+plot(vcr.test$altint[c(1:20, 26:45)],
+     vcr.train$altint[c(1:20, 151:170)]); abline(0, 1)
+plot(vcr.test$PAC[c(1:20, 26:45)],
+     vcr.train$PAC[c(1:20, 151:170)]); abline(0, 1)
+plot(as.vector(vcr.test$fig[c(1:20, 26:45), ]),
+     as.vector(vcr.train$fig[c(1:20, 151:170), ])); abline(0, 1)
+plot(vcr.test$farness[c(1:20, 26:45)],
+     vcr.train$farness[c(1:20, 151:170)]); abline(0, 1)
+plot(vcr.test$ofarness[c(1:20, 26:45)],
+     vcr.train$ofarness[c(1:20, 151:170)]); abline(0, 1)
+
+## -----------------------------------------------------------------------------
+# pdf("Artif_subset_SVM_silhouettes.pdf", width = 5.0, height = 4.6)
+silplot(vcr.test, classCols = cols, 
+        main = "Silhouette plot of SVM on subset of data")  
+# dev.off()
+
+## -----------------------------------------------------------------------------
+Kxx <- makeKernel(X, svfit = svmfit)
+dim(Kxx) 
+
+## -----------------------------------------------------------------------------
+outFV <- makeFV(Kxx)
+Xf <- outFV$Xf 
+
+## -----------------------------------------------------------------------------
+max(abs(as.vector(Kxx - Xf %*% t(Xf)))) # tiny, this is good.
+
+## -----------------------------------------------------------------------------
+explvar <- cumsum(apply(Xf, 2, var))
+plot(explvar / explvar[ncol(Xf)]); abline(h = 0.95)
+min(which(explvar > 0.95 * explvar[ncol(Xf)])) 
+
+## -----------------------------------------------------------------------------
+range(rowSums(Xf^2)) 
+
+## -----------------------------------------------------------------------------
+pairs(Xf[, 1:5], col = col)
+plot(Xf[, 1], Xf[, 5], col = col, pch = 19)
+
+## -----------------------------------------------------------------------------
+Xfdat <- data.frame(X = Xf, y = y)
+set.seed(1)
+svmfit1 <- svm(y~., data = Xfdat, scale = FALSE, kernel = "linear", cost = 10, probability = TRUE)
+plot(svmfit1$decision.values, svmfit$decision.values); abline(0, 1)
+vcr.trainf <- vcr.svm.train(X = Xf, y, svfit = svmfit1)
+
+## -----------------------------------------------------------------------------
+plot(vcr.train$yint, vcr.trainf$yint); abline(0, 1)
+plot(vcr.train$predint, vcr.trainf$predint); abline(0, 1)
+plot(vcr.train$altint, vcr.trainf$altint); abline(0, 1)
+plot(vcr.train$PAC, vcr.trainf$PAC); abline(0, 1)
+plot(vcr.train$fig, vcr.trainf$fig); abline(0, 1)
+vcr.train$figparams$farscales
+plot(vcr.train$farness, vcr.trainf$farness); abline(0, 1)
+plot(vcr.train$ofarness, vcr.trainf$ofarness); abline(0, 1)
+
+## -----------------------------------------------------------------------------
+Xnew <- Xf[c(1:25, 151:175), ]; dim(Xnew) 
+
+## -----------------------------------------------------------------------------
+vcr.testf <- vcr.svm.newdata(Xnew, ynew, vcr.trainf)
+
+## -----------------------------------------------------------------------------
+plot(vcr.testf$yintnew, vcr.test$yintnew); abline(0, 1)
+plot(vcr.testf$predint, vcr.test$predint); abline(0, 1)
+plot(vcr.testf$altint, vcr.test$altint); abline(0, 1)
+plot(vcr.testf$PAC, vcr.test$PAC); abline(0, 1)
+plot(vcr.testf$fig, vcr.test$fig); abline(0, 1)
+plot(vcr.testf$farness, vcr.test$farness); abline(0, 1)
+
+## -----------------------------------------------------------------------------
+data(data_bookReviews)
+X <- data_bookReviews[1:500, 1]; y <- data_bookReviews[1:500, 2] 
+Xnew  <- data_bookReviews[501:1000, 1]; ynew <- data_bookReviews[501:1000, 2] 
+length(X); length(Xnew); length(y); length(ynew) 
+
+## -----------------------------------------------------------------------------
+cols <- c("deepskyblue3", "red")
+col <- cols[as.numeric(y)]
+X[5]
+
+## -----------------------------------------------------------------------------
+strdot <- kernlab::stringdot(type = "spectrum", length = 7)
+strdot
+ptm <- proc.time()
+Kr_train <- kernlab::kernelMatrix(kernel = strdot, x = X)
+(proc.time() - ptm)[3] 
+dim(Kr_train) 
+
+## -----------------------------------------------------------------------------
+outFV <- makeFV(Kr_train)
+Xf <- outFV$Xf 
+dim(Xf) 
+
+## -----------------------------------------------------------------------------
+inprod <- Xf %*% t(Xf) 
+max(abs(as.vector(Kr_train - inprod))) 
+
+## -----------------------------------------------------------------------------
+range(rowSums(Xf^2)) # all 1
+
+## -----------------------------------------------------------------------------
+explvar <- cumsum(apply(Xf, 2, var))
+plot(explvar / explvar[ncol(Xf)]); abline(h = 0.95)
+min(which(explvar > 0.95 * explvar[ncol(Xf)]))
+
+## -----------------------------------------------------------------------------
+Xfdat <- data.frame(X = Xf, y = y)
+set.seed(1) # we have to fix the seed!
+svmfit <- svm(y~., data = Xfdat, scale = FALSE, kernel = "linear", cost = 2, probability = TRUE)
+
+## -----------------------------------------------------------------------------
+plot(svmfit$decision.values) 
+
+## -----------------------------------------------------------------------------
+vcr.train <- vcr.svm.train(Xf, y, svfit = svmfit)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcr.train, showOutliers = FALSE)
+
+## -----------------------------------------------------------------------------
+ptm <- proc.time()
+Kr_test <- kernlab::kernelMatrix(kernel = strdot, x = Xnew, y = X)
+(proc.time() - ptm)[3] 
+
+## -----------------------------------------------------------------------------
+FVtest <- makeFV(kmat = Kr_test, transfmat = outFV$transfmat)
+Zf <- FVtest$Xf 
+dim(Zf) 
+
+## -----------------------------------------------------------------------------
+inprod <- Zf %*% t(Xf) 
+max(abs(as.vector(Kr_test - inprod))) # tiny, good.
+
+## -----------------------------------------------------------------------------
+vcr.test <- vcr.svm.newdata(Zf, ynew, vcr.train)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcr.test)
+
+## -----------------------------------------------------------------------------
+stackedplot(vcr.test, classCols = cols, separSize = 1.5, minSize = 1.5, main = "SVM on the book review test data")
+
+## -----------------------------------------------------------------------------
+# pdf("Bookreview_test_SVM_silhouettes.pdf", width = 5.0, height = 4.6)
+silplot(vcr.test, classCols = cols, main = 
+           "Silhouette plot of SVM on book review test data")      
+# dev.off()
+
+## -----------------------------------------------------------------------------
+# To identify the atypical points, uncomment the next line:
+# classmap(vcr.test, 1, classCols = cols, identify = TRUE)
+# Identified point(s): 
+# [1]  67 127 118 145  94  45
+#
+# pdf("Bookreviews_500_classmap_test_negative.pdf")
+par(mar = c(3.5, 3.5, 2.0, 0.2))
+coords <- classmap(vcr.test, 1, classCols = cols, cex = 1.5,
+                  main = "predictions of the negative book reviews", cex.lab = 1.5, cex.axis = 1.5, cex.main = 1.5, maxfactor = 1.05, identify = FALSE)
+indstomark <- c(67, 127, 118, 145, 94, 45) # from identify=TRUE above
+labs  <- c("a", "b", "x", "c", "d", "e")
+xvals <- coords[indstomark, 1] +
+   c(-0.08, 0, 0, 0.09, 0.09, 0.09) # visual fine tuning
+yvals <- coords[indstomark, 2] +
+   c(0, 0.033, 0.030, 0, 0, 0)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("topright", fill = cols,
+       legend = c("negative", "positive"), cex = 1.4,
+       ncol = 1, bg = "white")
+# dev.off()
+par(oldpar)
+
+## -----------------------------------------------------------------------------
+(Xnew[which(ynew == 1)])[67] # (a) in the paper.
+
+(Xnew[which(ynew == 1)])[127] # (b) in the paper.
+
+(Xnew[which(ynew == 1)])[118] # (x) 
+# Negative review, but highly recommends another book!
+
+(Xnew[which(ynew == 1)])[145] # (c) in the paper.
+# Contains some grammatical errors
+# Is negative, but expressed very indirectly.
+
+(Xnew[which(ynew == 1)])[94] # (d) in the paper. 
+# Definitely negative, but quite short.
+
+(Xnew[which(ynew == 1)])[45] # (e) in the paper.
+
+## -----------------------------------------------------------------------------
+#
+# To identify the atypical points:
+# classmap(vcr.test, 2, classCols = cols, identify = TRUE)
+# Identified point(s): 
+# [1] 48  32 18 168 113
+#
+# pdf("Bookreviews_500_classmap_test_positive.pdf")
+par(mar = c(3.5, 3.5, 2.0, 0.2))
+coords <- classmap(vcr.test, 2, classCols = cols, cex = 1.5,
+                  main = "predictions of the positive book reviews", cex.lab = 1.5, cex.axis = 1.5, cex.main = 1.5,
+                  maxfactor = 1.05, identify = FALSE)
+indstomark <- c(48, 32, 18, 168, 113) # from identify = TRUE above
+coords[indstomark, ]
+labs  <- letters[6:10]
+xvals <- coords[indstomark, 1] +
+   c(0, 0, 0.09, 0.09, 0.09) # visual fine tuning
+yvals <- coords[indstomark, 2] +
+   c(0.032, 0.032, 0, 0, 0)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("left", fill = cols,
+       legend = c("negative", "positive"), cex = 1.4,
+       ncol = 1, bg = "white")
+# dev.off()
+par(oldpar)
+
+## -----------------------------------------------------------------------------
+(Xnew[which(ynew == 2)])[48] # (f) in the paper.
+
+(Xnew[which(ynew == 2)])[32] # (g) in the paper.
+
+(Xnew[which(ynew == 2)])[18] # (h) in the paper.
+
+(Xnew[which(ynew == 2)])[168] # (i) in the paper.
+
+(Xnew[which(ynew == 2)])[113] # (j) in the paper.
+# very short (and spelling error).
+
+## -----------------------------------------------------------------------------
+# Load the entire nutrients_branded data set:
+library("robCompositions")
+data(nutrients_branded, package = "robCompositions")
+
+X <- as.matrix(nutrients_branded)
+colnames(X)
+
+## -----------------------------------------------------------------------------
+X            <- X[, -c(1:7, 10, 18)]
+productnames <- nutrients_branded$name_D
+hasNA        <- apply(X, 1, function(y) sum(is.na(y)) > 0)
+X            <- X[-which(hasNA), ]
+productnames <- productnames[-which(hasNA)]
+
+## -----------------------------------------------------------------------------
+type  <- nutrients_branded$category_E 
+type  <- type[-which(hasNA)]
+inds1 <- which(type == "Sweets/Cookies/Biscuits")
+inds2 <- which(type == "Sweets/Milk based ice cream")
+inds3 <- which(type == "Sweets/Cakes and tarts")
+inds4 <- which(type == "Sweets/Creams and puddings")
+
+X <- X[c(inds1, inds2, inds3, inds4), ]
+X <- as.matrix(apply(X, 2, as.numeric))
+prod.names <- productnames[c(inds1, inds2, inds3, inds4)]
+X <- as.matrix(scale(X))
+head(X)
+
+y <- factor(c(rep("biscuits", length(inds1)),
+             rep("ice cream", length(inds2)),
+             rep("cakes", length(inds3)),
+             rep("puddings", length(inds4))),
+            levels = c("biscuits", "ice cream", 
+                      "cakes","puddings"))
+
+table(y)
+
+## -----------------------------------------------------------------------------
+Xdat <- data.frame(X = X, y = y)
+set.seed(1) # needed, otherwise not deterministic.
+svmfit <- svm(y~., data = Xdat, scale = FALSE,
+              kernel = "linear", cost = 10,
+              probability = TRUE)
+names(svmfit)
+
+vcrobj <- vcr.svm.train(X, y, svfit = svmfit)
+
+## -----------------------------------------------------------------------------
+confmat.vcr(vcrobj, showOutliers = FALSE)
+
+
+cols <- c("firebrick4", "violet", "chocolate3", "orange")
+
+# Stacked plot in the paper:
+# pdf("Sweets_stackplot_with_outliers.pdf",width=5,height=4.6)
+stackedplot(vcrobj, classCols = cols, separSize = 0.5, minSize = 1.5,
+            main = "Stacked plot of SVM on the sweets data",
+            htitle = "given class", vtitle = "predicted class")
+# dev.off()
+
+# With legend:
+stackedplot(vcrobj, classCols = cols, separSize = 0.5, minSize = 1.5,
+            main = "Stacked plot of SVM on the sweets data",
+            htitle = "given class", vtitle = "predicted class",
+            showLegend = TRUE)
+
+# Without showing outliers:
+stackedplot(vcrobj, classCols = cols, separSize = 0.5, minSize = 1.5,
+            main = "Stacked plot of SVM on the sweets data",
+            showOutliers = FALSE)
+
+## -----------------------------------------------------------------------------
+# pdf("Sweets_SVM_silhouettes.pdf", width=5.0, height=4.6)
+silplot(vcrobj, classCols = cols,
+        main = "Silhouette plot of SVM on the sweets data")
+# dev.off()
+
+## -----------------------------------------------------------------------------
+labels <- c("biscuits", "ice cream", "cakes", "puddings")
+par(mfrow = c(1, 1))
+
+# To identify special points in class 1:
+# classmap(vcrobj, 1, classCols = cols, identify=T)
+# Press the escape key to stop identifying.
+indstomark <- c(122, 1, 184)
+#
+mymaxf <- 1.05
+coords <- classmap(vcrobj, 1,classCols = cols,
+         main = paste0("predictions of ", labels[1]),
+         cex = 1.5, cex.lab = 1.5, cex.axis = 1.5,
+         cex.main = 1.5, maxfactor = mymaxf)
+coords[indstomark, ]
+labs  <- c("a", "b", "c")
+xvals <- c(2.380, 2.73, 4)
+yvals <- c(0.825, 0.105, 0.065)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("right", fill = cols, legend = labels,
+       cex = 1.15, ncol = 1, bg = "white")
+
+# Analogously for classes 2, 3, 4.
+
+# Figure in the paper with all four class maps together:
+#
+labels <- c("biscuits", "ice cream", "cakes", "puddings")
+# pdf(file="Sweets_all_class_maps.pdf",width=9,height=9)
+par(mfrow = c(2, 2)) # (nrows,ncols)
+par(mar = c(3.6, 3.5, 2.8, 1.0))
+mymaxf <- 1.05
+classmap(vcrobj, 1, classCols = cols,
+         main = paste0("predictions of ", labels[1]),
+         cex = 1.5, cex.lab = 1.5, cex.axis = 1.5,
+         cex.main = 1.5, maxfactor = mymaxf)
+labs  <- c("a", "b", "c") # points 122, 1, 184
+xvals <- c(2.380, 2.73, 4)
+yvals <- c(0.825, 0.105, 0.065)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("right", fill = cols, legend = labels,
+       cex = 1.15, ncol = 1, bg = "white")
+#
+par(mar = c(3.6, 2.0, 2.8, 0.3))
+classmap(vcrobj, 2,classCols = cols,
+         main = paste0("predictions of ", labels[2]),
+         cex = 1.5, cex.lab = 1.5, cex.axis = 1.5,
+         cex.main = 1.5, maxfactor = mymaxf)
+labs  <- c("d", "e", "f", "g", "h-l")
+xvals <- c(2.73, 3.21, 3.86, 3.83, 3.9)
+yvals <- c(0.78, 0.96, 0.67, 0.57, 0.16)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("topleft", fill = cols, legend = labels,
+       cex = 1.15, ncol = 1, bg = "white")
+#
+par(mar = c(3.6, 3.5, 2.8, 1.0))
+classmap(vcrobj, 3, classCols = cols,
+         main = paste0("predictions of ", labels[3]),
+         cex = 1.5, cex.lab = 1.5, cex.axis = 1.5,
+         cex.main = 1.5, maxfactor = mymaxf)
+labs  <- c("m", "n", "o", "p")
+xvals <- c(1.05, 3.12, 2.86, 4)
+yvals <- c(0.893, 0.95, 0.24, 0.09)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("right", fill = cols, legend = labels,
+       cex = 1.15, ncol = 1, bg = "white")
+#
+par(mar = c(3.6, 2.0, 2.8, 0.3))
+classmap(vcrobj, 4,classCols = cols,
+         main = paste0("predictions of ", labels[4]),
+         cex = 1.5, cex.lab = 1.5, cex.axis = 1.5,
+         cex.main = 1.5, maxfactor = mymaxf)
+labs  <- c("q", "r", "s-u", "v", "w", "x")
+xvals <- c(3.00, 3.6, 4.1, 3.82, 4.04, 3.9)
+yvals <- c(0.95, 0.97, 0.926, 0.875, 0.795, 0.588)
+text(x = xvals, y = yvals, labels = labs, cex = 1.5)
+legend("topleft", fill = cols, legend = labels,
+       cex = 1.16, ncol = 1, bg = "white")
+# dev.off()
+

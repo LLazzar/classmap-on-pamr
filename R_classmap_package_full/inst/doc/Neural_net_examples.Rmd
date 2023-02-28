@@ -1,0 +1,309 @@
+---
+title: "Neural_net_examples"
+author: "Raymaekers, J. and Rousseeuw, P.J."
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Neural_net_examples}
+  %\VignetteEngine{knitr::knitr}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+ fig.width  = 5 ,
+ fig.height = 3.5,
+ fig.align  = 'center'
+)
+oldpar <- list(mar = par()$mar, mfrow = par()$mfrow)
+```
+
+
+# Introduction
+
+
+This vignette visualizes classification results of neural nets using tools from the classmap package. We will fit neural nets by the nnet package, which allows the training of simple neural networks with a single hidden layer.
+
+
+```{r}
+library(nnet)
+library(classmap)
+```
+
+# Iris data
+## Training data
+As a first small example, we consider the Iris data.
+We start by training a neural network with one hidden layer
+containing 3 neurons on the full iris data.
+
+```{r}
+set.seed(123)
+nn.iris <- nnet(Species ~ ., data = iris, size = 3)
+names(nn.iris)
+head(nn.iris$fitted.values) # matrix of posterior probabilities.
+nn.iris$wts # the "weights" (coefficients, some are negative).
+summary(nn.iris) 
+```
+In the above output, the coefficients are listed with their arrows:
+i1,...,i4 are the 4 _i_nput variables.
+h1, h2, h3 are the 3 _h_idden nodes.
+o1, o2, o3 are the _o_utput nodes, one for each class
+            (before the softmax function is applied).
+b->h1, b->h2, b->h3 are the intercepts to the hidden layer.
+b->o1, b->o2, b->o3 are the intercepts to the output layer.
+
+We can use this to reconstruct the model from the coefficients.
+We first extract the coefficients from each layer:
+
+```{r}
+train_x <- as.matrix(iris[, -5]) # original input: 4 variables.
+# extract "weights" (coefficients) from each layer:
+bias1  <- nn.iris$wts[c(1, 6, 11)] # intercepts to hidden layer
+betas1 <- cbind(nn.iris$wts[2:5], nn.iris$wts[7:10], 
+                nn.iris$wts[12:15]) # slopes to hidden layer
+bias2  <- nn.iris$wts[c(16, 20, 24)] # intercepts to output layer
+betas2 <- cbind(nn.iris$wts[17:19], nn.iris$wts[21:23], 
+                nn.iris$wts[25:27]) # slopes to output layer.
+```
+
+Now we use the weights and the sigmoid function (for activation in the hidden layer) to reconstruct the
+representations of the data in the hidden layer (H), as well as in the final layer before softmax (X). X is the set of G-dimensional points v_i given by (6) in the paper. This X will be used for the farness in the class maps.
+
+```{r}
+sigmoid <- function(x) 1 / (1 + exp(-x)) 
+
+H <- t(t(train_x %*% betas1) + bias1) # = hidden layer
+X <- t(t(sigmoid(H) %*% betas2) + bias2) # = layer before softmax.
+pairs(X, col = unclass(iris$Species)) # G=3 classes ==> 3 dimensions.
+```
+
+To obtain the posterior probabilities, we can apply the 
+softmax function to the last layer. We verify that
+this yields the same result as the probabilities returned by 
+nnet().
+
+```{r}
+softmax <- function(x) exp(x) / sum(exp(x)) 
+outprobs <- t(apply(X, 1, softmax))
+trainprobs <- nn.iris$fitted.values # this is after softmax
+range(trainprobs - outprobs) # near 0, so we have a match.
+```
+
+Now we prepare the output for visualizations.
+
+```{r}
+y <- iris[, 5]
+vcrtrain <- vcr.neural.train(X, y, trainprobs)
+
+names(vcrtrain)
+vcrtrain$predint[c(1:10, 51:60, 101:110)] # prediction as integer
+vcrtrain$pred[c(1:10, 51:60, 101:110)]    # prediction as label
+vcrtrain$altint[c(1:10, 51:60, 101:110)]  # alternative label as integer
+vcrtrain$altlab[c(1:10, 51:60, 101:110)]  # alternative label
+
+# Probability of Alternative Class (PAC) of each object:
+vcrtrain$PAC[1:3] 
+#
+summary(vcrtrain$PAC)
+
+# f(i, g) is the distance from case i to class g:
+vcrtrain$fig[1:5, ] # for the first 5 objects:
+
+# The farness of an object i is the f(i, g) to its own class: 
+vcrtrain$farness[1:5]
+#
+summary(vcrtrain$farness)
+
+# The "overall farness" of an object is defined as the 
+# lowest f(i, g) it has to any class g (including its own):
+summary(vcrtrain$ofarness)
+
+confmat.vcr(vcrtrain)
+```
+
+
+The vcrtrain object can now be used to create the visualizations.
+
+```{r}
+cols <- c("red", "darkgreen", "blue")
+
+# stacked mosaic plot:
+stplot <- stackedplot(vcrtrain, classCols = cols,
+                     main = "Stacked plot of nnet on iris data") 
+stplot
+
+# silhouette plot:
+silplot(vcrtrain, classCols = cols, main =
+          "Silhouette plot of nnet on iris data") 
+
+# class maps:
+classmap(vcrtrain, "setosa", classCols = cols)
+# Very tight class (low PAC, no high farness).
+classmap(vcrtrain, "versicolor", classCols = cols)
+# Not so tight, one point is predicted as virginica.
+classmap(vcrtrain, "virginica", classCols = cols)
+# Also tight.
+```
+
+
+## New data
+
+
+To illustrate the use of new data we create a
+"fake" dataset which is a subset of the training data,
+where not all classes occur, and ynew has NA's.
+
+```{r}
+test_x <- train_x[1:100, ]
+ynew <- y[1:100]
+ynew[c(1:10, 51:60)] <- NA
+pairs(train_x, col = as.numeric(y) + 1, pch = 19) # 3 colors
+pairs(test_x, col = as.numeric(ynew) + 1, pch = 19) # only red and green
+```
+
+We now calculate the predictions of this test data, and reconstruct the representation of the test data in the hidden and final layer.
+
+```{r}
+predprobs <- predict(nn.iris, test_x, type = "raw")
+range(predprobs - trainprobs[1:100, ]) # perfect match
+
+# Reconstruct this prediction:
+Hnew <- t(t(test_x %*% betas1) + bias1) # hidden layer
+Xnew <- t(t(sigmoid(Hnew) %*% betas2) + bias2) # layer before softmax
+probsnew <- t(apply(Xnew, 1, softmax))
+range(probsnew - predprobs) # ~0, so we have a match
+```
+
+Now prepare for visualization:
+
+```{r}
+vcrtest <- vcr.neural.newdata(Xnew, ynew, probsnew, vcrtrain)
+
+plot(vcrtest$predint, vcrtrain$predint[1:100]); abline(0, 1) # identical, OK
+plot(vcrtest$altint, vcrtrain$altint[1:100]); abline(0, 1) # identical when not NA, OK
+plot(vcrtest$PAC, vcrtrain$PAC[1:100]); abline(0, 1) # OK
+vcrtest$farness # length 100, with NA's where ynew is NA
+plot(vcrtest$farness, vcrtrain$farness[1:100]); abline(0, 1) # identical where not NA
+plot(vcrtest$fig, vcrtrain$fig[1:100, ]); abline(0, 1) # same, OK
+vcrtest$ofarness # 100, withOUT NA's: ofarness even exists for cases with missing ynew, for which farness cannot exist.
+plot(vcrtest$ofarness, vcrtrain$ofarness[1:100]); abline(0, 1) # same, OK
+
+confmat.vcr(vcrtest) # as expected:
+```
+
+Now we can visualize the classification on the test data,
+and compare the resulting plots with their counterparts on the 
+training data.
+
+```{r}
+stplot # to compare with:
+stackedplot(vcrtest, classCols = cols, separSize = 1.5,
+            minSize = 1, main = "Stacked plot of nnet on subset of iris data")
+silplot(vcrtest, classCols = cols, main = "Silhouette plot of nnet on subset of iris data")
+
+classmap(vcrtrain, 1, classCols = cols)
+classmap(vcrtest, 1, classCols = cols) # same, but fewer points
+#
+classmap(vcrtrain, 2, classCols = cols)
+classmap(vcrtest, 2, classCols = cols) # same, but fewer points
+#
+# classmap(vcrtrain, 3, classCols = cols)
+# classmap(vcrtest, 3, classCols = cols)
+# # Class number 3 with label virginica has no objects to visualize.
+``` 
+
+# floral buds data: 
+
+As a second example, we consider the floral buds data.
+
+```{r}
+data("data_floralbuds")
+```
+
+We start by training a neural network with one hidden layer consisting of 2 neurons.
+```{r}
+set.seed(123)
+nn.buds <- nnet(y ~ ., data = data_floralbuds, size = 2)
+names(nn.buds)
+head(nn.buds$fitted.values) # matrix of posterior probabilities of each class
+nn.buds$wts # the "weights" (coefficients, some negative)
+summary(nn.buds) # A hidden layer with 2 neurons:
+```
+
+
+In the output above, the coefficients are listed with their arrows:
+i1, ..., i6 are the 6 input variables
+h1, h2 are the 2 hidden nodes
+o1, .., o4 are the output nodes, one for each class (before softmax)
+b->h1 and b->h2 are both intercepts to the hidden layer
+b_o1, ..., b->o4 are the intercepts to the output layer
+
+We first extract these weights from the output of nnet():
+```{r}
+train_x <- as.matrix(data_floralbuds[, -7])
+# extract weights for each layer:
+bias1  <- nn.buds$wts[c(1, 8)]
+betas1 <- cbind(nn.buds$wts[2:7], nn.buds$wts[9:14])
+bias2  <- nn.buds$wts[c(15, 18, 21, 24)]
+betas2 <- cbind(nn.buds$wts[16:17], nn.buds$wts[19:20], 
+                nn.buds$wts[22:23], nn.buds$wts[25:26])
+```
+
+
+We now use these weights and the sigmoid activation function
+to reconstruct the data in the hidden and final layer (before applying the softmax function). We verify that, after applying softmax, we obtain the same posterior probabilities as those in the output of nnet().
+
+```{r}
+H <- t(t(train_x %*% betas1) + bias1) # hidden layer
+X <- t(t(sigmoid(H) %*% betas2) + bias2) # layer before softmax
+outprobs <- t(apply(X, 1, softmax))
+trainprobs <- nn.buds$fitted.values # posterior probabilities
+range(trainprobs - outprobs) # ~0
+# OK, we have reconstructed the posterior probabilities
+pairs(X, col = data_floralbuds$y)
+```
+
+Now prepare for visualization:
+
+```{r}
+y <- data_floralbuds$y
+vcrtrain <- vcr.neural.train(X, y, trainprobs)
+cols <- c("saddlebrown", "orange", "olivedrab4", "royalblue3")
+``` 
+
+
+```{r}
+stackedplot(vcrtrain, classCols = cols, main =
+              "Stacked plot of nnet on floral buds data")
+
+# Silhouette plot:
+silplot(vcrtrain, classCols = cols, 
+        main = "Silhouette plot of nnet on floral buds data")
+
+
+
+# Quasi residual plot:
+
+PAC <- vcrtrain$PAC
+feat <- rowSums(train_x); xlab <- "rowSums(X)"
+# pdf("Floralbuds_quasi_residual_plot.pdf", width = 5, height = 4.8)
+qresplot(PAC, feat, xlab = xlab, plotErrorBars = TRUE, fac = 2, main = "Floral buds: quasi residual plot")
+# images with higher sum are easier to classify
+# dev.off()
+cor.test(feat, PAC, method = "spearman") 
+# rho = -0.238, p-value < 2e-8 
+# ==> decreasing trend is significant
+
+
+
+# Class maps:
+
+classmap(vcrtrain, "branch", classCols = cols)
+
+classmap(vcrtrain, "bud", classCols = cols)
+
+classmap(vcrtrain, "scales", classCols = cols)
+
+classmap(vcrtrain, "support", classCols = cols)
+```
+***
