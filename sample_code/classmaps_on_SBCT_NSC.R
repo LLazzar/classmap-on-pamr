@@ -5,19 +5,51 @@ setwd(here())
 # loading R function need ####
 source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
 
-# Main code ####
-#load microarray generic dataset from local file
+# Main code of examples ####
+## a generic microarray dataset form local ####
 library(foreign) #to read WEKA arff format
-datar=read.arff("datasets/Ovarian.arff")
+datar=read.arff("sample_datasets/Lung.arff")
 str(datar) #need manipulation to get to work with pamR
-data=list()
+data=list() #pamr wants list
 data$y=datar[,ncol(datar)]
 data$x=datar[,1:(ncol(datar)-1)]
-data$x=t(data$x)
+data$x=t(data$x) #pamr wants nvariable x obervations
 str(data$x)
 str(data$y)
 
-#load SBCT dataset from library plsgenomics
+#fitting
+library(pamr)
+?pamr.train
+
+pamr=pamr.train(data) #data=SRBCT as pamr paper
+pamr #chose a threshold by eye and get index
+yhat=pamr$yhat[3] #choose threshold 6.763
+str(pamr$prob) #it's a 3d dim array [i,j,k]=[nobvs,class,thresholdindex]
+pprob=pamr$prob[,,3]
+ytrue=SRBCT$y
+
+#producing the output for classmap
+vcrpamr=vcr.pamr.train(data=data, pamrfit=pamr, threshold_index = 14) #data is feeded in same format that pam accepts
+
+#silhouette visual plot
+library(classmap)
+?silplot #takes in a vcr out
+silplot(vcrpamr) #classLabels = c("EWS","BL","NB","RMS") if you have names
+pamr$nonzero[19]
+pamr$se.scale
+pamr$threshold.scale
+pamr$call
+pamr$threshold
+pamr$scale.sd
+str(pamr$centroids)
+pamr$centroid.overall
+
+#farness plot
+classmap(vcrpamr, 5) #very very strange behaviour of the curve (opposite)
+
+
+
+## on SRBCT dataset (Tibs 2002) ####
 library(plsgenomics)
 data(SRBCT)
 ?SRBCT
