@@ -1,13 +1,14 @@
-#set session to current file dir
-#setwd("C:/Users/Admin/OneDrive - Alma Mater Studiorum Università di Bologna/maybethesis/classmap_on_pamr")
+# set session to project directory directory ####
+library(here)
+setwd(here())
 
-source("VCR_auxiliaryFunctions.R") #to import functions needed for VCR_pamr (especially checkLabels)
-source("VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
-library(cellWise) #for transfo function used in Comp fareness in VCR-auxillary
+# loading R function need ####
+source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
 
+# Main code ####
 #load microarray generic dataset from local file
 library(foreign) #to read WEKA arff format
-datar=read.arff("Ovarian.arff")
+datar=read.arff("datasets/Ovarian.arff")
 str(datar) #need manipulation to get to work with pamR
 data=list()
 data$y=datar[,ncol(datar)]
@@ -55,12 +56,12 @@ pamr$centroid.overall
 #farness plot
 classmap(vcrpamr, 4) #very very strange behaviour of the curve (opposite)
 
-#### what can do 
+#### what can do
 # check with other dataset
 # try another farness (initfig) measures that you invent
 # check all the process (all can be ok bu process can be flawed)
 # try classic dataset
 
-#troubleshooting 
+#troubleshooting
 delta=(pamr$centroids-pamr$centroid.overall)/pamr$sd
 delta.shrunk=soft.shrink(delta, pamr$threshold[19])

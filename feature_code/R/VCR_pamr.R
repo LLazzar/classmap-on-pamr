@@ -1,3 +1,7 @@
+#to import functions needed for VCR_pamr (especially for checkLabels, computeFarness..)
+library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFunctions
+source("auxillary_functions/VCR_auxiliaryFunctions.R") #this would be present inside classmap pacakage
+
 vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   #
   # Using the outputs of just pamr.train!! for classification
@@ -53,7 +57,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   #               class, including its own. Always exists.
   #
   keepPCA <- TRUE; prec <- 1e-10
-  
+
   X <- as.matrix(t(data$x)) # in case it is a data frame
                             # also transpose back since pamr takes datarow as variables and datacolumns as variables
   if (nrow(X) == 1) X <- t(X)
@@ -63,7 +67,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   n <- nrow(X)
   d <- ncol(X)
   if (n < 2) stop("The training data should have more than one case.")
-  
+
   y=as.factor(data$y)#factorize the given classes
   # Check whether y and its levels are of the right form:
   checked <- checkLabels(y, n, training = TRUE)
@@ -118,9 +122,9 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   # GETTING DISCRIMINANT SCORES (they are our distance measures on which we build farness)
   #
   #
-  
+
   #### Auxillary functions needed: ####
-  
+
   soft.shrink <-function(delta, threshold) {
     dif <- abs(delta) - threshold
     delta <- sign(delta) * dif * (dif > 0)
@@ -128,7 +132,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
     attr(delta, "nonzero") <- nonzero
     delta
   }
-  
+
   diag.disc <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
@@ -149,9 +153,9 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
     names(dd0) <- NULL
     scale(dd, dd0, FALSE)
   }
-  
+
   ###################
-  
+
   #getting quantities needed from pamrfit
   centroids=pamrfit$centroids #centroids per variable per class
   centroid.overall=pamrfit$centroid.overall
@@ -162,7 +166,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   prior=pamrfit$prior
   nonzero=pamrfit$nonzero[threshold_index]
   K=length(prior)
-  
+
   #getting deltas (dik)
   delta <- (centroids - centroid.overall)/sd
   delta <- scale(delta, FALSE, threshold.scale * se.scale) #gives division by mk
@@ -178,17 +182,17 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   xtest<-data$x #NBNB we evaluate directly to train set here #in VCR.pamr.newdata or pamrcv probably needs to be modified
   dd <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
   initfig<-(-dd) #minus because wrt to paper is with opposite sign here
-  
+
   farout <- compFarness(type = "affine", testdata = FALSE, yint = yint,
                         nlab = nlab, X = NULL, fig = initfig,
                         d = d, figparams = NULL)
-  
+
   figparams <- farout$figparams
   figparams$ncolX <- d
   #figparams$computeMD <- computeMD check what is that, probabbly related only to neuralnet
   #figparams$classMS <- classMS check what is that, probbably related to neuralnet
   #figparams$PCAfits <- farout$PCAfits #only for neuralnet??
-  
+
   return(list(X = X,
               yint = yint,
               y = levels[yint],
