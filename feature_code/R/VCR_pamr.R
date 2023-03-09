@@ -12,16 +12,20 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   # Find a way to compute farness
   # missing vcr.pamr.newdata
   #
+  # putted pamrfit object just like forest.vcr takes forest fit
+  #
   #
   # Arguments:
-  #   X         : the coordinates of the n objects of the training
-  #               data, in the layer chosen by the user. Missing
-  #               values are not allowed.
+  #   data      : the same input data to pamr (same format) that is a
+  #               list with components: x- an expression genes in the rows,
+  #               samples in the columns), and y- a vector of the class labels
+  #               for each sample. Optional components- genenames, a vector
+  #               of gene names, and geneid- a vector of gene identifiers.
   #   y         : factor with the given class labels of the objects.
   #               Make sure that the levels are in the same order as
   #               used in the neural net, i.e. the columns of its
   #               binary "once-hot-encoded" response vectors.
-  #   probs     : posterior probabilities obtained by the neural
+  #   threshold_index     : posterior probabilities obtained by the neural
   #               net, e.g. in keras. For each case (row of X),
   #               the classes have probabilities that add up to 1.
   #               Each row of the matrix probs contains these

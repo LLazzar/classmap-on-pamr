@@ -8,7 +8,7 @@ source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pam
 # Main code of examples ####
 ## a generic microarray dataset form local ####
 library(foreign) #to read WEKA arff format
-datar=read.arff("sample_datasets/Lung.arff")
+datar=read.arff("sample_datasets/Ovarian.arff")
 str(datar) #need manipulation to get to work with pamR
 data=list() #pamr wants list
 data$y=datar[,ncol(datar)]
@@ -23,13 +23,14 @@ library(pamr)
 
 pamr=pamr.train(data) #data=SRBCT as pamr paper
 pamr #chose a threshold by eye and get index
+pamr$prob
 yhat=pamr$yhat[3] #choose threshold 6.763
 str(pamr$prob) #it's a 3d dim array [i,j,k]=[nobvs,class,thresholdindex]
 pprob=pamr$prob[,,3]
 ytrue=SRBCT$y
 
 #producing the output for classmap
-vcrpamr=vcr.pamr.train(data=data, pamrfit=pamr, threshold_index = 14) #data is feeded in same format that pam accepts
+vcrpamr=vcr.pamr.train(data=data, pamrfit=pamr, threshold_index = 22) #data is feeded in same format that pam accepts
 
 #silhouette visual plot
 library(classmap)
@@ -45,7 +46,7 @@ str(pamr$centroids)
 pamr$centroid.overall
 
 #farness plot
-classmap(vcrpamr, 5) #very very strange behaviour of the curve (opposite)
+classmap(vcrpamr, 2) #very very strange behaviour of the curve (opposite)
 
 
 
@@ -86,7 +87,7 @@ str(pamr$centroids)
 pamr$centroid.overall
 
 #farness plot
-classmap(vcrpamr, 4) #very very strange behaviour of the curve (opposite)
+classmap(vcrpamr, 3) #very very strange behaviour of the curve (opposite)
 
 #### what can do
 # check with other dataset
