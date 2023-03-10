@@ -70,12 +70,14 @@ pprob=pamr$prob[,,3]
 ytrue=SRBCT$y
 
 #producing the output
-vcrpamr=vcr.pamr.train(data=SRBCT, pamrfit=pamr, threshold_index = 19) #data is feeded in same format that pam accepts
+vcrpamr=vcr.pamr.train(data=SRBCT, pamrfit=pamr, threshold= 8) #data is feeded in same format that pam accepts
+pamr.confusion(pamr, threshold=8)
 
 #silhouette visual plot
 library(classmap)
 ?silplot #takes in a vcr out
 silplot(vcrpamr, classLabels = c("EWS","BL","NB","RMS") ) #classLabels = c("EWS","BL","NB","RMS") for SRBCT
+pamr.confusion(pamr, threshold=8)  # check if there is match with class label (about line of ordering label)
 pamr$nonzero[19]
 pamr$barbara
 pamr$se.scale
