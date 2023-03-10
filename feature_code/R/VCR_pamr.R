@@ -1,8 +1,10 @@
+######################### (code that will not be needed in case of classmap merge)
 #to import functions needed for VCR_pamr (especially for checkLabels, computeFarness..)
 library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFunctions
 source("auxillary_functions/VCR_auxiliaryFunctions.R") #this would be present inside classmap pacakage
+######################### (code that will not be needed in case of classmap merge)
 
-vcr.pamr.train <- function(data, pamrfit, threshold_index) {
+vcr.pamr.train <- function(data, pamrfit, threshold) {
   #
   # Using the outputs of just pamr.train!! for classification
   # applied to the training data, this function prepares for
@@ -21,22 +23,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   #               samples in the columns), and y- a vector of the class labels
   #               for each sample. Optional components- genenames, a vector
   #               of gene names, and geneid- a vector of gene identifiers.
-  #   y         : factor with the given class labels of the objects.
-  #               Make sure that the levels are in the same order as
-  #               used in the neural net, i.e. the columns of its
-  #               binary "once-hot-encoded" response vectors.
-  #   threshold_index     : posterior probabilities obtained by the neural
-  #               net, e.g. in keras. For each case (row of X),
-  #               the classes have probabilities that add up to 1.
-  #               Each row of the matrix probs contains these
-  #               probabilities. The columns of probs must be in
-  #               the same order as the levels of y.
-  #   estmethod : function for location and covariance estimation.
-  #               Should return a list with $m and $S. Can be meancov
-  #               (classical mean and covariance matrix) or DetMCD.
-  #               If one or more classes have a singular covariance
-  #               matrix, the function automatically switches to
-  #               the PCA-based farness used in vcr.svm.train().
+  #   threshold : The desired threshold value
   #
   # Returns:
   #   yint      : given labels as integer 1, 2, 3, ...
@@ -61,18 +48,23 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   #               class, including its own. Always exists.
   #
   keepPCA <- TRUE; prec <- 1e-10
-
+  #
+  # Subsetting to the same subset (of variables and observation) on which pamr fit works on.
+  data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset]
+  #
+  #
   X <- as.matrix(t(data$x)) # in case it is a data frame
-                            # also transpose back since pamr takes datarow as variables and datacolumns as variables
+                            # also transpose back since pamr takes rows as variables and columns as observation
   if (nrow(X) == 1) X <- t(X)
   if (sum(is.na(as.vector(X))) > 0) {
-    stop("The coordinate matrix X has NA's.")
+    stop("The coordinate matrix X has NA's.") #it's ok to leave that because pamr don't fit with NAs
   }
   n <- nrow(X)
   d <- ncol(X)
   if (n < 2) stop("The training data should have more than one case.")
 
-  y=as.factor(data$y)#factorize the given classes
+  y=as.factor(data$y) #factorize the given classes
+
   # Check whether y and its levels are of the right form:
   checked <- checkLabels(y, n, training = TRUE)
   # If it did not stop: yint has length n, and its values are in
@@ -83,13 +75,18 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   nlab    <- length(levels)
   yint    <- lab2int(y) #given label (true) as integer
   yintv   <- yint[indsv]
-  classSizes <- rep(0, nlab)
-  for (g in seq_len(nlab)) {classSizes[g] <- sum(yintv == g)}
+  classSizes <- rep(0, nlab)  ###PROBABLY TO BE REMOVED
+  for (g in seq_len(nlab)) {classSizes[g] <- sum(yintv == g)} ### PROBABLY TO BE REMOVED
   # classSizes
+  #
+  # Getting threshold index from inputted threshold value (idea of this code/logic from pamr.confusion)
+  #
+  ii <- (1:length(pamrfit$threshold))[pamrfit$threshold >= threshold]
+  ii <- ii[1] #taking the first in the list
   #
   # Check matrix of posterior probabilities:
   #
-  probs <- as.matrix(pamrfit$prob[,,threshold_index]) #take posteriors of the select threshold throgh the index
+  probs <- as.matrix(pamrfit$prob[,,ii]) #prob object in pamr output is consistent for our purpose
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (nrow(probs) != n) stop(paste0(
     "The matrix probs should have ", n, " rows"))
@@ -164,11 +161,11 @@ vcr.pamr.train <- function(data, pamrfit, threshold_index) {
   centroids=pamrfit$centroids #centroids per variable per class
   centroid.overall=pamrfit$centroid.overall
   sd=pamrfit$sd
-  threshold=pamrfit$threshold[threshold_index]
+  threshold=pamrfit$threshold[ii]
   se.scale=pamrfit$se.scale
   threshold.scale=pamrfit$threshold.scale
   prior=pamrfit$prior
-  nonzero=pamrfit$nonzero[threshold_index]
+  nonzero=pamrfit$nonzero[ii]
   K=length(prior)
 
   #getting deltas (dik)
