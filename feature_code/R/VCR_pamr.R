@@ -47,7 +47,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #   ofarness  : For each object i, its lowest farness to any
   #               class, including its own. Always exists.
   #
-  keepPCA <- TRUE; prec <- 1e-10
+  keepPCA <- TRUE; prec <- 1e-10  ####PROBABLY TO BE REMOVED
   #
   # Subsetting to the same subset (of variables and observation) on which pamr fit works on.
   data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset]
@@ -66,7 +66,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   y=as.factor(data$y) #factorize the given classes
 
   # Check whether y and its levels are of the right form:
-  checked <- checkLabels(y, n, training = TRUE)
+  checked <- checkLabels(y, n, training = TRUE) #PROBABLY SHOULD RE DIG DEEP TO UNDERSTAND THIS FUNCTION
   # If it did not stop: yint has length n, and its values are in
   # 1, ..., nlab without gaps. It is NA where y is: outside indsv.
   lab2int <- checked$lab2int # is a function
@@ -81,7 +81,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #
   # Getting threshold index from inputted threshold value (idea of this code/logic from pamr.confusion)
   #
-  ii <- (1:length(pamrfit$threshold))[pamrfit$threshold >= threshold]
+  ii <- (1:length(pamrfit$threshold))[pamrfit$threshold >= threshold] ##ADD STOP IF THRESHOLD VALUE IS OUTSIDE
   ii <- ii[1] #taking the first in the list
   #
   # Check matrix of posterior probabilities:
@@ -96,7 +96,10 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #
   # Compute prediction for all objects in the training data:
   #
+  # MAYBE SHOULD ADD LINE 89 VCR_FOREST (CHECK labels switching)
+  #
   predint <- apply(probs[, , drop = FALSE], 1, which.max) #should be ok but check on pamr if this value corresponds to the yhat
+  #                                                       # CAN BE PROBABLY REDUCE LIKE VCR_FOREST
   #
   # Compute ptrue and palt for all objects with available y:
   #
