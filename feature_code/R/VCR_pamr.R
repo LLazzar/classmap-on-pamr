@@ -23,7 +23,8 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #               samples in the columns), and y- a vector of the class labels
   #               for each sample. Optional components- genenames, a vector
   #               of gene names, and geneid- a vector of gene identifiers.
-  #   threshold : The desired threshold value
+  #   pamrfit   : the result of a call to pamr.train or pamr.cv (PAMR.CV TO BE TESTED)
+  #   threshold : the desired threshold value
   #
   # Returns:
   #   yint      : given labels as integer 1, 2, 3, ...
