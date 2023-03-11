@@ -51,7 +51,14 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   keepPCA <- TRUE; prec <- 1e-10  ####PROBABLY TO BE REMOVED
   #
   # Subsetting to the same subset (of variables and observation) on which pamr fit works on.
+
+  if (!is.null(pamrfit$gene.subset)) {
+
   data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset]
+  } else  { #becaus pamr.cv does not have directly gene.subset in the output
+    data$x=data$x[pamrfit$cv.objects[[1]]$gene.subset,pamrfit$sample.subset] ###PROBLEM TO GET GENE SUBSET
+  }
+
   #
   #
   X <- as.matrix(t(data$x)) # in case it is a data frame
@@ -88,6 +95,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   # Check matrix of posterior probabilities:
   #
   probs <- as.matrix(pamrfit$prob[,,ii]) #prob object in pamr output is consistent for our purpose
+                                         #$prob ok also for pamr.cv()
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (nrow(probs) != n) stop(paste0(
     "The matrix probs should have ", n, " rows"))
@@ -120,9 +128,6 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   # (PAC and altint stay NA outside indsv)
   #
   # Compute farness:
-  #
-  # missing all the part of code from now on, remember this code is edited modifing
-  # vcr.train.neuralnet, should come up with code for farness and figparam
   #
   # GETTING DISCRIMINANT SCORES (they are our distance measures on which we build farness)
   #
@@ -161,7 +166,12 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
 
   ###################
 
+  #actually reconstrunctanting dd
   #getting quantities needed from pamrfit
+
+  if (!is.null(pamrfit$centroids)) { #it means we have a classic pamr.train object
+
+
   centroids=pamrfit$centroids #centroids per variable per class
   centroid.overall=pamrfit$centroid.overall
   sd=pamrfit$sd
@@ -186,6 +196,45 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
   xtest<-data$x #NBNB we evaluate directly to train set here #in VCR.pamr.newdata or pamrcv probably needs to be modified
   dd <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+
+  } else { #it means we have a pamr.cv, so different process to reconstruct dd
+
+    dd=matrix(NA, nrow=n , ncol=nlab) #defining the matrix contain dd (n x k)
+    for (nf in length(pamrfit$folds)) {
+
+      pamrfits=cvpamr$cv.objects[[nf]] #retrieve train object output of pamr.train) for the given fold in the loop
+      centroids=pamrfits$centroids #centroids per variable per class
+      centroid.overall=pamrfits$centroid.overall
+      sd=pamrfits$sd
+      threshold=pamrfits$threshold[ii]
+      se.scale=pamrfits$se.scale
+      threshold.scale=pamrfits$threshold.scale
+      prior=pamrfits$prior
+      nonzero=pamrfits$nonzero[ii]
+      K=length(prior)
+
+      #getting deltas (dik)
+      delta <- (centroids - centroid.overall)/sd
+      delta <- scale(delta, FALSE, threshold.scale * se.scale) #gives division by mk
+      #getting the shrunken ones (d'ik)
+      delta.shrunk=soft.shrink(delta,threshold) #we have a problem here, all zero
+      #getting d'ik*mk
+      delta.shrunk <- scale(delta.shrunk, FALSE, 1/(threshold.scale * se.scale))
+      nonzero_check <- attr(delta.shrunk, "nonzero")
+      if(!nonzero_check==nonzero){
+        stop(nonzero_check)
+      }
+      posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
+      xtest<-data$x[,cvpamr$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
+                                         # this is done following the logic inside nsccv ( called in pamr.cv) where for each fold nsc is called with x (obvs in train) and xtest the obvs considered as test
+                                         # then in nsc xtest in called in dd
+      dd[cvpamr$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+
+    }
+  }
+
+
+
   initfig<-(-dd) #minus because wrt to paper is with opposite sign here
 
   farout <- compFarness(type = "affine", testdata = FALSE, yint = yint,
