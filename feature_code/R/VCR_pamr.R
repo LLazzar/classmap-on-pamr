@@ -54,15 +54,16 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
 
   if (!is.null(pamrfit$gene.subset)) {
 
-  data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset]
-  } else  { #becaus pamr.cv does not have directly gene.subset in the output
-    data$x=data$x[pamrfit$cv.objects[[1]]$gene.subset,pamrfit$sample.subset] ###PROBLEM TO GET GENE SUBSET
+  data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset] #can subset for both genes and samples #PROBABLY SUBSETTING GENE NOT USEFUL IN OURCASE
+  } else  { #because pamr.cv does not have directly gene.subset in the output
+    data$x=data$x[,pamrfit$sample.subset] ###PROBLEM TO GET GENE SUBSET but problably not useful pamrcv already inherits gene.subset
+                                            # also dd discriminant utilize centroid vector thatt will be automatically shrinked to the only utilized gene  }
   }
-
   #
   #
   X <- as.matrix(t(data$x)) # in case it is a data frame
                             # also transpose back since pamr takes rows as variables and columns as observation
+                            # IS THIS NECESSARY??
   if (nrow(X) == 1) X <- t(X)
   if (sum(is.na(as.vector(X))) > 0) {
     stop("The coordinate matrix X has NA's.") #it's ok to leave that because pamr don't fit with NAs
@@ -200,9 +201,9 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   } else { #it means we have a pamr.cv, so different process to reconstruct dd
 
     dd=matrix(NA, nrow=n , ncol=nlab) #defining the matrix contain dd (n x k)
-    for (nf in length(pamrfit$folds)) {
+    for (nf in 1:length(pamrfit$folds)) {
 
-      pamrfits=cvpamr$cv.objects[[nf]] #retrieve train object output of pamr.train) for the given fold in the loop
+      pamrfits=pamrfit$cv.objects[[nf]] #retrieve training object for the given fold in the loop
       centroids=pamrfits$centroids #centroids per variable per class
       centroid.overall=pamrfits$centroid.overall
       sd=pamrfits$sd
@@ -225,15 +226,18 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
         stop(nonzero_check)
       }
       posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
-      xtest<-data$x[,cvpamr$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
+      xtest<-data$x[,pamrfit$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
                                          # this is done following the logic inside nsccv ( called in pamr.cv) where for each fold nsc is called with x (obvs in train) and xtest the obvs considered as test
-                                         # then in nsc xtest in called in dd
-      dd[cvpamr$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+                                         # then in nsc xtest in called in dd (as here below)
+      dd[pamrfit$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+
 
     }
   }
 
-
+  if (any(is.na(dd))) {
+    stop(dd)
+  }
 
   initfig<-(-dd) #minus because wrt to paper is with opposite sign here
 
