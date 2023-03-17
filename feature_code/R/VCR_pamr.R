@@ -4,7 +4,7 @@ library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFu
 source("auxillary_functions/VCR_auxiliaryFunctions.R") #this would be present inside classmap pacakage
 ######################### (code that will not be needed in case of classmap merge)
 
-vcr.pamr.train <- function(data, pamrfit, threshold) {
+vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
   # Using the outputs of just pamr.train!! for classification
   # applied to the training data, this function prepares for
@@ -52,13 +52,14 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #
   # Subsetting to the same subset (of variables and observation) on which pamr fit works on.
 
-  if (!is.null(pamrfit$gene.subset)) {
+  #if (!is.null(pamrfit$gene.subset)) {
 
   data$x=data$x[pamrfit$gene.subset,pamrfit$sample.subset] #can subset for both genes and samples #PROBABLY SUBSETTING GENE NOT USEFUL IN OURCASE
-  } else  { #because pamr.cv does not have directly gene.subset in the output
-    data$x=data$x[,pamrfit$sample.subset] ###PROBLEM TO GET GENE SUBSET but problably not useful pamrcv already inherits gene.subset
-                                            # also dd discriminant utilize centroid vector thatt will be automatically shrinked to the only utilized gene  }
-  }
+  #} else  { #because pamr.cv does not have directly gene.subset in the output
+    #data$x=data$x[,pamrfit$sample.subset] ###PROBLEM TO GET GENE SUBSET but problably not useful pamrcv already inherits gene.subset
+                                            # problem in matrix moltiplication in DD function if there subset of gene (t(X)%*%centroids)
+                                            #centroids vector is shrinked into gene sub dimension, t(x) is not
+  #}
   #
   #
   X <- as.matrix(t(data$x)) # in case it is a data frame
@@ -90,13 +91,26 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #
   # Getting threshold index from inputted threshold value (idea of this code/logic from pamr.confusion)
   #
-  ii <- (1:length(pamrfit$threshold))[pamrfit$threshold >= threshold] ##ADD STOP IF THRESHOLD VALUE IS OUTSIDE
-  ii <- ii[1] #taking the first in the list
+  #
+
+  if (is.null(pamrfitcv)) {
+    ii <- (1:length(pamrfit$threshold))[pamrfit$threshold >= threshold] ##ADD STOP IF THRESHOLD VALUE IS OUTSIDE
+    ii <- ii[1] #taking the first in the list
+  } else {
+    ii <- (1:length(pamrfitcv$threshold))[pamrfit$threshold >= threshold] ##ADD STOP IF THRESHOLD VALUE IS OUTSIDE
+    ii <- ii[1] #taking the first in the list
+  }
+
   #
   # Check matrix of posterior probabilities:
   #
+
+  if (is.null(pamrfitcv)) {
   probs <- as.matrix(pamrfit$prob[,,ii]) #prob object in pamr output is consistent for our purpose
-                                         #$prob ok also for pamr.cv()
+
+  } else {
+    probs <- as.matrix(pamrfitcv$prob[,,ii]) #if a crossvalidated object is given, we want to evaluate cv results
+  }
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (nrow(probs) != n) stop(paste0(
     "The matrix probs should have ", n, " rows"))
@@ -170,7 +184,7 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   #actually reconstrunctanting dd
   #getting quantities needed from pamrfit
 
-  if (!is.null(pamrfit$centroids)) { #it means we have a classic pamr.train object
+  if (is.null(pamrfitcv)) { #it means we have a classic pamr.train object
 
 
   centroids=pamrfit$centroids #centroids per variable per class
@@ -201,9 +215,9 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
   } else { #it means we have a pamr.cv, so different process to reconstruct dd
 
     dd=matrix(NA, nrow=n , ncol=nlab) #defining the matrix contain dd (n x k)
-    for (nf in 1:length(pamrfit$folds)) {
+    for (nf in 1:length(pamrfitcv$folds)) {
 
-      pamrfits=pamrfit$cv.objects[[nf]] #retrieve training object for the given fold in the loop
+      pamrfits=pamrfitcv$cv.objects[[nf]] #retrieve training object for the given fold in the loop
       centroids=pamrfits$centroids #centroids per variable per class
       centroid.overall=pamrfits$centroid.overall
       sd=pamrfits$sd
@@ -226,16 +240,16 @@ vcr.pamr.train <- function(data, pamrfit, threshold) {
         stop(nonzero_check)
       }
       posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
-      xtest<-data$x[,pamrfit$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
+      xtest<-data$x[,pamrfitcv$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
                                          # this is done following the logic inside nsccv ( called in pamr.cv) where for each fold nsc is called with x (obvs in train) and xtest the obvs considered as test
                                          # then in nsc xtest in called in dd (as here below)
-      dd[pamrfit$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+      dd[pamrfitcv$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
 
 
     }
   }
 
-  if (any(is.na(dd))) {
+  if (any(is.na(dd))) { ##CHECK PUT FOR DEVELOPING REASONS PROBABLY COULD REMOVE
     stop(dd)
   }
 
