@@ -62,7 +62,10 @@ SRBCT$y=SRBCT$Y
 library(pamr)
 ?pamr.train
 
-pamr=pamr.train(SRBCT) #data=SRBCT as pamr paper
+pamr=pamr.train(SRBCT ,gene.subset = c(1:2300)) #data=SRBCT as pamr paper
+pamr
+cvpamr=pamr.cv(pamr, SRBCT)
+cvpamr
 pamr #threshold 6.763 seems better, correspond to index 19
 yhat=pamr$yhat[3] #choose threshold 6.763
 str(pamr$prob) #it's a 3d dim array [i,j,k]=[nobvs,class,thresholdindex]
@@ -70,14 +73,17 @@ pprob=pamr$prob[,,3]
 ytrue=SRBCT$y
 
 #producing the output
-vcrpamr=vcr.pamr.train(data=SRBCT, pamrfit=pamr, threshold= 8) #data is feeded in same format that pam accepts
+vcrpamr=vcr.pamr.train(data=SRBCT, pamrfit=pamr, threshold= 6.7) #data is feeded in same format that pam accepts
+vcrpamrcv=vcr.pamr.train(data=SRBCT, pamrfit=pamr, pamrfitcv=cvpamr, threshold= 8)
 pamr.confusion(pamr, threshold=8)
+vcrpamr$PAC
+
 
 #silhouette visual plot
 library(classmap)
 ?silplot #takes in a vcr out
-silplot(vcrpamr, classLabels = c("EWS","BL","NB","RMS") ) #classLabels = c("EWS","BL","NB","RMS") for SRBCT
-pamr.confusion(pamr, threshold=8)  # check if there is match with class label (about line of ordering label)
+silplot(vcrpamrcv, classLabels = c("EWS","BL","NB","RMS") ) #classLabels = c("EWS","BL","NB","RMS") for SRBCT
+pamr.confusion(cvpamr, threshold=8)  # check if there is match with class label (about line of ordering label)
 pamr$nonzero[19]
 pamr$barbara
 pamr$se.scale
@@ -89,7 +95,7 @@ str(pamr$centroids)
 pamr$centroid.overall
 
 #farness plot
-classmap(vcrpamr, 3) #very very strange behaviour of the curve (opposite)
+classmap(vcrpamr, 4) #very very strange behaviour of the curve (opposite)
 
 #### what can do
 # check with other dataset

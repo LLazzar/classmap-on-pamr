@@ -255,9 +255,10 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
 
   initfig<-(-dd) #minus because wrt to paper is with opposite sign here
 
+  rd=pamrfit$nonzero[ii] #getting reducted dimension
   farout <- compFarness(type = "affine", testdata = FALSE, yint = yint,
                         nlab = nlab, X = NULL, fig = initfig,
-                        d = d, figparams = NULL)
+                        d = NULL, figparams = NULL) #DON'T REALLYU KNOW IF TO FEED OR NOT D
 
   figparams <- farout$figparams
   figparams$ncolX <- d

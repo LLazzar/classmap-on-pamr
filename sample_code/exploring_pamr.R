@@ -45,15 +45,18 @@ pamrtrain$sample.subset
 
 
 # cross-validation ####
+?pamr.cv()
 cvpamr=pamr.cv(pamrtrain, khanc)
-cvpamr$folds
+cvpamr$folds #here we have indexes of each obvs left out of train for each set
+             #crucial to reconstruct dd for pamr.cv
 cvpamr$cv.objects[[1]] #if want to add pamr.cv as input of vcr.pamr shoulkd understand this object
+cvpamr
 # geneplot ####
 pamr.geneplot(pamrtrain,khanc,threshold=7)
 # indeterminate ####
 pamr.indeterminate(pamrtrain$prob, mingap=0.2) #should use pamr predict
 # listgenes ####
-pamr.listgenes(pamrtrain, khanc, 4.2)
+pamr.listgenes(pamrtrain, khanc, 4.2) #can be called only on pamr.train
 # makeclass ####
 pamr.makeclasses(khanc)
 # menu ####
