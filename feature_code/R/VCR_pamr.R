@@ -3,6 +3,7 @@
 library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFunctions
 source("auxillary_functions/VCR_auxiliaryFunctions.R") #this would be present inside classmap pacakage
 ######################### (code that will not be needed in case of classmap merge)
+source("feature_code/R/VCR_auxiliaryFunctions_alt.R")
 
 vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
@@ -158,7 +159,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     delta
   }
 
-  diag.disc <-function(x, centroids, prior, weight) {
+  diag.disc.original <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
       posid <- (weight > 0)
@@ -179,6 +180,30 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     scale(dd, dd0, FALSE)
   }
 
+  mdS2 <-function(x, centroids, prior, weight) {
+    ### Computes the class discriminant functions assuming scaled x and centroids
+    if(! missing(weight)) {
+      posid <- (weight > 0)
+      if(any(posid)) {
+        weight <- sqrt(weight[posid])
+        centroids <- centroids[posid,  , drop = FALSE] * weight
+        x <- x[posid,  , drop = FALSE] * weight
+      }
+      else {
+        mat <- outer(rep(1, ncol(x)), log(prior), "*")
+        dimnames(mat) <- list(NULL, dimnames(centroids)[[2]])
+        return(mat)
+      }
+    }
+    p=ncol(t(x))
+    n=nrow(t(x))
+    k=ncol(centroids)
+    dd=matrix(NA, nrow=n, ncol=k)
+    for (k in 1:ncol(centroids)){
+      dd[,k]=mahalanobis(t(x),centroids[,k],cov=diag(p))
+    }
+    dd
+  }
   ###################
 
   #actually reconstrunctanting dd
@@ -210,7 +235,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   }
   posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
   xtest<-data$x #NBNB we evaluate directly to train set here #in VCR.pamr.newdata or pamrcv probably needs to be modified
-  dd <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+  dd <- mdS2((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
 
   } else { #it means we have a pamr.cv, so different process to reconstruct dd
 
@@ -243,7 +268,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
       xtest<-data$x[,pamrfitcv$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
                                          # this is done following the logic inside nsccv ( called in pamr.cv) where for each fold nsc is called with x (obvs in train) and xtest the obvs considered as test
                                          # then in nsc xtest in called in dd (as here below)
-      dd[pamrfitcv$folds[[nf]],] <- diag.disc((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+      dd[pamrfitcv$folds[[nf]],] <- mdS2((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
 
 
     }
@@ -254,6 +279,13 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   }
 
   initfig<-(-dd) #minus because wrt to paper is with opposite sign here
+
+  #if (min(initfig)<0){ #shift to all positive values to try box cox transformation
+  #  initfig=initfig-(min(initfig))+3000
+  #}
+
+  #initfig=initfig+10 #TRYING TRANSFORMING DD TO SEE RESULTS
+  #initfig=log(initfig)
 
   rd=pamrfit$nonzero[ii] #getting reducted dimension
   farout <- compFarness(type = "affine", testdata = FALSE, yint = yint,
@@ -278,5 +310,6 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
               figparams = figparams,
               fig = farout$fig,
               farness = farout$farness,
-              ofarness = farout$ofarnes))
+              ofarness = farout$ofarnes,
+              initfig=initfig)) #INITFIG ADDED FOR TEST
 }
