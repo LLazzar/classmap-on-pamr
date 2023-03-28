@@ -1,19 +1,23 @@
 ######################### (code that will not be needed in case of classmap merge)
 #to import functions needed for VCR_pamr (especially for checkLabels, computeFarness..)
-library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFunctions
-source("auxillary_functions/VCR_auxiliaryFunctions.R") #this would be present inside classmap pacakage
-######################### (code that will not be needed in case of classmap merge)
-source("feature_code/R/VCR_auxiliaryFunctions_alt.R")
+library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFunctions.R
+source("R_classmap_package_full/R/VCR_auxiliaryFunctions.R") #importing auxillary functions needed
+                                                             # this script is available in classmap package
+                                                             # so in case of integration of VCR_pamr this import would be useless
+#########################
+source("feature_code/R/VCR_auxiliaryFunctions_alt.R") # an alternative version of the file used for some experiments
+                                                      # for example i tried to removed the division by omedian in compFareness
 
 vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
-  # Using the outputs of just pamr.train!! for classification
+  # Using the outputs of just pamr.train (or of pamr.cv) for classification
   # applied to the training data, this function prepares for
   # graphical displays.
   #
-  # Maybe a better way than threshold index(check how pamr works practically to chose the threshold delta)
-  # Find a way to compute farness
-  # missing vcr.pamr.newdata
+  ##########
+  # TO DO LIST:
+  # MISSING vcr.pamr.newdata
+  #########
   #
   # putted pamrfit object just like forest.vcr takes forest fit
   #
