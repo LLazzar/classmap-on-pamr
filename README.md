@@ -1,2 +1,2 @@
 # classmap-on-pamr
-a repo to add support for pamr (NSC) method in the classmap R package
+A repo developed in order to add support (in R) for pamr classification algorithm method in the classmap R package.
