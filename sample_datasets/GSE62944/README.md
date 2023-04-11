@@ -1,0 +1,1 @@
+This folder should contain all supplementary files (unzipped, they are tar file, put txt here!) that can be downloaded from https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE62944
