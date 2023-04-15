@@ -302,6 +302,38 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #figparams$classMS <- classMS check what is that, probbably related to neuralnet
   #figparams$PCAfits <- farout$PCAfits #only for neuralnet??
 
+
+  ####################################################
+  # calculating pairwise distances, for additional visualization feature
+
+  pw_mdS2 <-function(x, sd, prior, weight) { #pairwise mahalobis squared
+    if(! missing(weight)) {
+      posid <- (weight > 0)
+      if(any(posid)) {
+        weight <- sqrt(weight[posid])
+        centroids <- centroids[posid,  , drop = FALSE] * weight
+        x <- x[posid,  , drop = FALSE] * weight #get only positions non zero positions
+      }
+      else {
+        mat <- outer(rep(1, ncol(x)), log(prior), "*")
+        dimnames(mat) <- list(NULL, dimnames(centroids)[[2]])
+        return(mat)
+      }
+    }
+    p=ncol(t(x))
+    n=nrow(t(x))
+    k=ncol(centroids)
+    pwd=matrix(NA, nrow=n, ncol=n)
+    sd=sd[posid]
+    for (i in 1:n){
+      pwd[,i]=mahalanobis(t(x),t(x)[i,],cov=diag(sd^2))
+    }
+    pwd
+  }
+
+  #pwd=pw_mdS2(xtest, sd, weight=posid)
+  ###############################################
+
   return(list(X = X,
               yint = yint,
               y = levels[yint],
@@ -315,5 +347,8 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
               fig = farout$fig,
               farness = farout$farness,
               ofarness = farout$ofarnes,
-              initfig=initfig)) #INITFIG ADDED FOR TEST
+              initfig=initfig, #INITFIG ADDED FOR TEST
+              posid=posid, #added for test
+              sd=sd#pwd=pwd #pairwise matrix distance for mds
+              ))
 }
