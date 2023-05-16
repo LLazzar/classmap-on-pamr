@@ -24,8 +24,9 @@ plot(tsne_results$Y,col=col_vec_true, pch=21, bg=intens)
 plot(tsne_results$Y,col=intens, pch=20, cex=2)
 
 mds=cmdscale(vcrpamr$pwd, k=2)
-mds=cmdscale(pairwise, k=2)
+mds=cmdscale(pairwiser, k=2)
 plot(mds, col=col_vec_true, pch=21, bg=intens, cex=0.8) #how seen by algorithm by trues belonging
+plot(mds, pch=20)
 
 
 plot(mds, col=col_vec_true, pch=20, cex=0.8)
@@ -40,6 +41,7 @@ for (i in 1:length(col_vec_true)){
 pal <- colorRamp(c("blue", "white"))
 pal(0.6)
 rgb(pal(0.6),maxColorValue = 255)
+
 #FITTING
 
 library(pamr)
@@ -67,15 +69,22 @@ source("feature_code/R/VCR_pamr.R")
 #VISUAL TOOLS
 
 library(classmap)
-vcrpamr=vcr.pamr.train(data,pamr, pamrfitcv=NULL, threshold=28)
+vcrpamr=vcr.pamr.train(data,pamr, pamrfitcv=NULL, threshold=23)
 
 
 #calculating pairwise distance all variables
+
 sd=vcrpamr$sd
 n=ncol(data$x)
 pairwise=matrix(NA, nrow = n, ncol = n)
 x<- t(apply(t(data$x), 1, function(x) x / sd))
 pairwise=dist(x)
+
+
+#alternative with mahalobis to check
+sd=vcrpamr$sd
+posid=rep(TRUE,length(sd))
+pwd=pw_mdS2(data$x, sd, weight=posid)
 
 #calculating pairwise distance variables selected
 posid=vcrpamr$posid
@@ -87,6 +96,7 @@ xr=data$x[posid,]
 pairwiser=matrix(NA, nrow = n, ncol = n)
 xr<- t(apply(t(xr), 1, function(x) x / sdr))
 pairwiser=dist(xr)
+pairwiser= as.matrix(dist(xr)^2)
 
 
 
@@ -98,7 +108,7 @@ pairwiser=dist(xr)
 
 ?silplot
 silplot(vcrpamr)
-classmap(vcrpamr, whichclass = 2)
+classmap(vcrpamr, whichclass = 1)
 
 #QUASI RESIDUAL
 

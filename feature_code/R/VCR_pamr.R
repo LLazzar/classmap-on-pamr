@@ -311,7 +311,6 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
       posid <- (weight > 0)
       if(any(posid)) {
         weight <- sqrt(weight[posid])
-        centroids <- centroids[posid,  , drop = FALSE] * weight
         x <- x[posid,  , drop = FALSE] * weight #get only positions non zero positions
       }
       else {
@@ -322,7 +321,6 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     }
     p=ncol(t(x))
     n=nrow(t(x))
-    k=ncol(centroids)
     pwd=matrix(NA, nrow=n, ncol=n)
     sd=sd[posid]
     for (i in 1:n){

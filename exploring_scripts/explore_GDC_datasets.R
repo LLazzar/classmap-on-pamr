@@ -99,3 +99,10 @@ plotmafSummary(maf = maftools.input,
 oncoplot(maf = maftools.input,
          top = 10,
          removeNonMutated = TRUE)
+
+
+nldsanfleg
+fksglsg
+ksgnksgsssssssssssssssss
+
+JAJAJAJJA
