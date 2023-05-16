@@ -25,9 +25,9 @@ Denote the number of cases in the test set by \eqn{m \geq 1}. Each row of \code{
 
 \value{
 A list with components: \cr
-\item{Xf}{When makeKV is applied to the training set, \code{Xf} has coordinates of \eqn{n} points (vectors), the plain inner products of which equal the kernel matrix of the training set. That is, \code{kmat} = \code{Xf} \code{Xf}'. The \code{Xf} are expressed in an orthogonal basis in which the variance of the coordinates is decreasing, which is useful when plotting the first few coordinates. When \code{\link{makeFV}} is applied to a test set, \code{Xf} are coordinates of the feature vectors of the test set in the same space as those of the training set, and then \code{kmat} = \code{Xf} \code{Xf_training}'.
+\item{Xf}{When makeKV is applied to the training set, \code{Xf} has coordinates of \eqn{n} points (vectors), the plain inner products of which equal the kernel matrix of the training set. That is, \code{kmat} = \code{Xf} \code{Xf}'. The \code{Xf} are expressed in an orthogonal basis in which the variance of the coordinates is decreasing, which is useful when plotting the first few coordinates. When \code{\link{makeFV}} is applied to a test set, \code{Xf} are coordinates of the feature vectors of the test set in the same space as those of the training set, and then \code{kmat} = \code{Xf} \%*\% \code{Xf of training data}.
   }
-\item{transfmat}{square matrix for transforming kmat to \code{Xf}. The actual transformation needs to be carried out by \code{makeFV} because it is not a simple matrix product.}
+\item{transfmat}{square matrix for transforming kmat to \code{Xf}.}
 }
 
 \references{
@@ -35,7 +35,7 @@ Raymaekers J., Rousseeuw P.J., Hubert M. (2021). Class maps for visualizing clas
 }
 
 \author{
- Raymaekers J., Rousseeuw P.J.
+ Raymaekers J., Rousseeuw P.J., Hubert, M.
 }
 
 \seealso{
@@ -58,7 +58,7 @@ outFV <- makeFV(Kxx)
 Xf <- outFV$Xf # The data matrix in this feature space.
 dim(Xf) # The feature vectors are high dimensional.
 # The inner products of Xf match the kernel matrix:
-max(abs(as.vector(Kxx - crossprod(t(Xf), t(Xf))))) # 6.167711e-11 # tiny, OK
+max(abs(as.vector(Kxx - crossprod(t(Xf), t(Xf))))) # 3.005374e-13 # tiny, OK
 range(rowSums(Xf^2)) # all points in Xf lie on the unit sphere.
 pairs(Xf[, 1:5], col = cols[as.numeric(y)])
 # In some of these we see spherical effects, e.g.
