@@ -17,10 +17,11 @@ try removing delta.shrunk an dll that functions
 correct stop (halt function9) words words for both functions
 
 maybe not putting both prior and threshold scale (they would influence figparams obtained in train?? prior probably not not considered in computing farness))
+also threshhold, changing threhold would mean restimate all the figparamters???
 
 manage threhold.scale and prior additional inputs
 
 for both function decide if data$y should be a factor or not and throw exception (see if pamr can take as input data with data$y as factor)
 
 
-START FROM LINE 422 USING PAMR.PREDICT TO GET POSTERIORS PROBABILITIES
+START FROM LINE 422 USING PAMR.PREDICT TO GET POSTERIORS PROBABILITIES, review also feasible inputs (threshold,prior,figparam)
