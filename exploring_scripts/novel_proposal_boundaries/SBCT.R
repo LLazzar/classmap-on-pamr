@@ -1,54 +1,61 @@
-# set session to project directory directory ####
-library(here)
-setwd(here())
+# Preparing the gene-expr microarray dataset SBCT
 
-# loading R function need ####
-source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
-
-# Main code of examples ####
-## a generic microarray dataset form local ####
 library(foreign) #to read WEKA arff format
 datar=read.arff("sample_datasets/SRBCT.arff")
 str(datar) #need manipulation to get to work with pamR
-data=list() #pamr wants list
-data$y=datar[,ncol(datar)]
-data$x=datar[,1:(ncol(datar)-1)]
-data$x=t(data$x) #pamr wants nvariable x obervations
-str(data$x)
-str(data$y)
+train_indices <- sample(nrow(datar), nrow(datar) * 0.8)  # 70% for training
+traindata=list() #pamr wants list
+traindata$y=datar[train_indices,ncol(datar)]
+traindata$x=datar[train_indices,1:(ncol(datar)-1)]
+traindata$x=t(traindata$x) #pamr wants nvariable x obervations
+str(traindata$x)
+str(traindata$y)
+testdata=list()
+testdata$y=datar[-train_indices,ncol(datar)]
+testdata$x=datar[-train_indices,1:(ncol(datar)-1)]
+testdata$x=t(testdata$x) #pamr wants nvariable x obervations
+str(testdata$x)
+str(testdata$y)
 
-#fitting
+# Fitting
 library(pamr)
 ?pamr.train
-
-pamr=pamr.train(data) #data=SRBCT as pamr paper
+pamr=pamr.train(traindata) #data=SRBCT as pamr paper
 pamr #chose a threshold by eye and get index
 pamr$prob
 yhat=pamr$yhat[3] #choose threshold 6.763
 str(pamr$prob) #it's a 3d dim array [i,j,k]=[nobvs,class,thresholdindex]
 pprob=pamr$prob[,,3]
 ytrue=SRBCT$y
+pamrcv=pamr.cv(pamr,traindata)
+pamrcv
 
-#producing the output for classmap
-vcrpamr=vcr.pamr.train(data=data, pamrfit=pamr, threshold = 8) #data is feeded in same format that pam accepts
+# Visualizing on training set though classmap
 
-#silhouette visual plot
+source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
+vcrpamr=vcr.pamr.train(data=traindata, pamrfit=pamr, threshold = 6) #data is feeded in same format that pam accepts
+vcrpamrcv=vcr.pamr.train(data=traindata, pamrfit=pamr, pamrfitcv=pamrcv, threshold = 6)
+
+## silhouette visual plot
 library(classmap)
 ?silplot #takes in a vcr out
 silplot(vcrpamr) #classLabels = c("EWS","BL","NB","RMS") if you have names
+silplot(vcrpamrcv)
+
+## classmap/farness plot visual
 ?classmap
 classmap(vcrpamr, whichclass=4)
-pamr$nonzero[19]
-pamr$se.scale
-pamr$threshold.scale
-pamr$call
-pamr$threshold
-pamr$scale.sd
-str(pamr$centroids)
-pamr$centroid.overall
 
-#farness plot
-classmap(vcrpamr, 4) #very very strange behaviour of the curve (opposite)
+
+# Predicting test set
+?pamr.predict
+ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6, type="class")
+table(ypred,testdata$y) #all correct
+testpost=pamr.predict(fit=pamr, newx=testdata$x, threshold=6, type="posterior") #not needed
+
+#Visualizing on the test set though classmap
+
+
 
 ########################################################
 
