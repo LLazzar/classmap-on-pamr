@@ -1,0 +1,26 @@
+write new data
+polish function
+add coumentation
+test
+
+nbnb TO NTOE in new dat output of vcr.pamr.train with pamr object not pamrcv ADD CHECK
+
+could write vcr.pamr.cv function instead of one
+prior and threshold scale could be fited separatly to pamr.predict
+
+optimize mds2??? using only reduced dimension?
+
+check centroid outputted in pamr.predict if diff than train
+#should import pamr.predict from pamr package
+try removing delta.shrunk an dll that functions
+
+correct stop (halt function9) words words for both functions
+
+maybe not putting both prior and threshold scale (they would influence figparams obtained in train?? prior probably not not considered in computing farness))
+
+manage threhold.scale and prior additional inputs
+
+for both function decide if data$y should be a factor or not and throw exception (see if pamr can take as input data with data$y as factor)
+
+
+START FROM LINE 422 USING PAMR.PREDICT TO GET POSTERIORS PROBABILITIES
