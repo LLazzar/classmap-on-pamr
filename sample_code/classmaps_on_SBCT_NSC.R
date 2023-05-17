@@ -1,7 +1,3 @@
-# set session to project directory directory ####
-library(here)
-setwd(here())
-
 # loading R function need ####
 source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
 
