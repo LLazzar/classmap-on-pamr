@@ -4,6 +4,9 @@ library(cellWise) #for transfo function used in Comp fareness in VCR_auxillaryFu
 source("R_classmap_package_full/R/VCR_auxiliaryFunctions.R") #importing auxillary functions needed
                                                              # this script is available in classmap package
                                                              # so in case of integration of VCR_pamr this import would be useless
+
+
+library(pamr) #to get pamr.predict for newdata function, in package can just import that with import pamr.predict from pamr
 #########################
 source("feature_code/R/VCR_auxiliaryFunctions_alt.R") # an alternative version of the file used for some experiments
                                                       # for example i tried to removed the division by omedian in compFareness
@@ -341,7 +344,8 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
               ofarness = farout$ofarnes,
               pamrfit = pamrfit, #needed for computations in vcr.pamr.newdata
               pamrfitcv = pamrfitcv, #needed to test in vcr.pamr.newdata whether vcr.pamr.train out is right
-              threshold = threshold,
+              threshold = threshold, #effective threshold used
+              ii=ii, #number of threshold selected
               initfig=initfig, #INITFIG ADDED FOR TEST
               posid=posid, #added for test
               sd=sd#pwd=pwd #pairwise matrix distance for mds
@@ -390,7 +394,8 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #               class, including its own. Always exists.
   #
   # subsetting to same subset of gene
-  newdata$x=newdata$x[pamrfit$gene.subset,pamrfit$sample.subset]
+
+  #newdata$x=newdata$x[vcr.pamr.train.out$pamrfit$gene.subset , ] #subsetting not needed, not done in pamr.predict
 
   Xnew <- as.matrix(t(newdata$x))
 
@@ -419,7 +424,8 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   yintnew[indsv] <- lab2int(ynew[indsv])
   #
   #
-  # compute posteriors using pamr.predict (should import) #########
+  # computing posterior using function of pamr called pamr.predict
+  probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"))
 
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (ncol(probs) == 1) probs <- t(probs) # if new data is 1 object
@@ -510,8 +516,9 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #actually reconstrunctanting dd
   #getting quantities needed from pamrfit
   pamrfit=vcr.pamr.train.out$pamrfit
+  ii=vcr.pamr.train.out$ii
 
-  if (!is.null(vcr.pamr.train.out$pamrfit)){
+  if (!is.null(vcr.pamr.train.out$pamrfitcv)){
     stop("The vcr.pamr.train.out feeded is calculated on pamr.cv object and not on pamr.train object")
   }
 
@@ -538,18 +545,18 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
     stop(nonzero_check)
   }
   posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
-  newDistToClass <- mdS2((newx - centroid.overall)/sd, delta.shrunk, prior, weight = posid) #since the fucntion assumes scaled x, xnew is scale before
+  newDistToClass <- mdS2((newdata$x - centroid.overall)/sd, delta.shrunk, prior, weight = posid) #since the fucntion assumes scaled x, xnew is scale before
 
 
-  if (any(is.na(dd))) { ##CHECK PUT FOR DEVELOPING REASONS PROBABLY COULD REMOVE
-    stop(dd)
+  if (any(is.na(newDistToClass))) { ##CHECK PUT FOR DEVELOPING REASONS PROBABLY COULD REMOVE
+    stop("newDistToClass has NAs")
   }
 
   newDistToclass=-newDistToClass #minus because wrt to paper is with opposite sign here
 
   rd=pamrfit$nonzero[ii] #getting reducted dimension
 
-  farout <- compFarness(type = "affine", testdata = TRUE, yint = yint,
+  farout <- compFarness(type = "affine", testdata = TRUE, yint = yintnew,
                         nlab = nlab, X = NULL, fig = newDistToclass,
                         d = NULL, figparams = vcr.pamr.train.out$figparams) #DON'T REALLYU KNOW IF TO FEED OR NOT D
 
@@ -565,7 +572,9 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
               PAC = PAC,
               fig = farout$fig,
               farness = farout$farness,
-              ofarness = farout$ofarness))
+              ofarness = farout$ofarness,
+              threshold=threshold #effective threshold used in pamr.prediction
+              ))
 }
 
 

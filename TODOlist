@@ -17,7 +17,7 @@ try removing delta.shrunk an dll that functions
 correct stop (halt function9) words words for both functions
 
 maybe not putting both prior and threshold scale (they would influence figparams obtained in train?? prior probably not not considered in computing farness))
-also threshhold, changing threhold would mean restimate all the figparamters???
+also threshhold, changing threhold would mean restimate all the figparamters??? (probably can but in train should go on and compute quantities for all thresholds)
 
 manage threhold.scale and prior additional inputs
 

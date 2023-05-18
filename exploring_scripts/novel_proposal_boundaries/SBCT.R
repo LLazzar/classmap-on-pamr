@@ -51,9 +51,10 @@ classmap(vcrpamr, whichclass=4)
 ?pamr.predict
 ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6, type="class")
 table(ypred,testdata$y) #all correct
-testpost=pamr.predict(fit=pamr, newx=testdata$x, threshold=6, type="posterior") #not needed
+testpost=pamr.predict(fit=pamr, newx=testdata$x, type="posterior") #not needed
 
 #Visualizing on the test set though classmap
+vcr.pamr.newdata(newdata = testdata, vcr.pamr.train.out = vcrpamr )
 
 
 
