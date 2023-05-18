@@ -8,8 +8,8 @@ maybe not putting both prior and threshold scale (they would influence figparams
 also threshhold, changing threhold would mean restimate all the figparamters??? (probably can but in train should go on and compute quantities for all thresholds)
 -put in newdata output set of paramters with pamr.predict is called
 -could write vcr.pamr.cv function instead of one
-- could optimize fact that delta.shrunk,dd, ms2 functions are repeated in both train and newdata
-
+-could optimize fact that delta.shrunk,dd, ms2 functions are repeated in both train and newdata
+-add output list in newdata with paramters to call exactly equally pamr.predict
 
 DEBUG
 try pamr pamr cv in train

@@ -33,8 +33,8 @@ pamrcv
 # Visualizing on training set though classmap
 
 source("feature_code/R/VCR_pamr.R") #to import special vcr function made for pamr(NSC) classifier
-vcrpamr=vcr.pamr.train(data=traindata, pamrfit=pamr, threshold = 6) #data is feeded in same format that pam accepts
-vcrpamrcv=vcr.pamr.train(data=traindata, pamrfit=pamr, pamrfitcv=pamrcv, threshold = 6)
+vcrpamr=vcr.pamr.train(data=traindata, pamrfit=pamr, threshold = 6.2) #data is feeded in same format that pam accepts
+vcrpamrcv=vcr.pamr.train(data=traindata, pamrfit=pamr, pamrfitcv=pamrcv, threshold = 6.2)
 
 ## silhouette visual plot
 library(classmap)
@@ -45,16 +45,28 @@ silplot(vcrpamrcv)
 ## classmap/farness plot visual
 ?classmap
 classmap(vcrpamr, whichclass=4)
+classmap(vcrpamrcv, whichclass=4)
 
 
 # Predicting test set
 ?pamr.predict
-ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6, type="class")
+ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6.473032, type="class")
 table(ypred,testdata$y) #all correct
-testpost=pamr.predict(fit=pamr, newx=testdata$x, type="posterior") #not needed
+testpost=pamr.predict(fit=pamr, newx=testdata$x, threshold=6.473032, type="posterior") #not needed
+as.numeric(apply(testpost[, , drop = FALSE], 1, which.max))
+ypred
 
 #Visualizing on the test set though classmap
-vcr.pamr.newdata(newdata = testdata, vcr.pamr.train.out = vcrpamr )
+vcrpamrtest=vcr.pamr.newdata(newdata = testdata, vcr.pamr.train.out = vcrpamr )
+
+## silhouette visual plot
+library(classmap)
+?silplot #takes in a vcr out
+silplot(vcrpamrtest) #classLabels = c("EWS","BL","NB","RMS") if you have names
+
+## classmap/farness plot visual
+?classmap
+classmap(vcrpamrtest, whichclass=4)
 
 
 
