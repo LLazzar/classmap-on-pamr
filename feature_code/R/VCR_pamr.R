@@ -6,10 +6,12 @@ source("R_classmap_package_full/R/VCR_auxiliaryFunctions.R") #importing auxillar
                                                              # so in case of integration of VCR_pamr this import would be useless
 
 
-library(pamr) #to get pamr.predict for newdata function, in package can just import that with import pamr.predict from pamr
+library(pamr) #to get pamr.predict for newdata function, in package can just import that with import pamr.predict from pamr, also to get softshirnki etc
 #########################
-source("feature_code/R/VCR_auxiliaryFunctions_alt.R") # an alternative version of the file used for some experiments
-                                                      # for example i tried to removed the division by omedian in compFareness
+
+# functions here devised in same style as they are for other classifiers in classmap package
+# particularly here of inspiration was vcr.forest.train that takes in a forestfit object of particular package
+# here we take in pamr.train object form pamr package
 
 vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
@@ -17,10 +19,6 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   # applied to the training data, this function prepares for
   # graphical displays.
   #
-  ##########
-  # TO DO LIST:
-  # MISSING vcr.pamr.newdata
-  #########
   #
   # putted pamrfit object just like forest.vcr takes forest fit
   #
@@ -31,7 +29,8 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #               samples in the columns), and y- a vector of the class labels
   #               for each sample. Optional components- genenames, a vector
   #               of gene names, and geneid- a vector of gene identifiers.
-  #   pamrfit   : the result of a call to pamr.train or pamr.cv (PAMR.CV TO BE TESTED)
+  #   pamrfit   : the result of a call to pamr.train or pamr.cv
+  #   pamrfitcv :
   #   threshold : the desired threshold value
   #
   # Returns:
@@ -150,12 +149,13 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
   # Compute farness:
   #
-  # GETTING DISCRIMINANT SCORES (they are our distance measures on which we build farness)
+  # Build D(x,g) taking as reference discriminant score (and then do as classmap do for DA beacuse pamr can be seen as particular case of DA)
   #
   #
 
   #### Auxillary functions needed: ####
 
+  #function that allows shrinkcage #internal function of pamr package
   soft.shrink <-function(delta, threshold) {
     dif <- abs(delta) - threshold
     delta <- sign(delta) * dif * (dif > 0)
@@ -164,6 +164,9 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     delta
   }
 
+  #function that calculates diagonal discriminant used to then assign and
+  #compute posteriors (here only kept to have inspiration to compute measure D(i,g) and build function just below)
+  #internal function of pamr package
   diag.disc.original <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
@@ -185,6 +188,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     scale(dd, dd0, FALSE)
   }
 
+  #function actually used to compute D(i,g) distance of an observation to the class
   mdS2 <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
@@ -209,13 +213,18 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     }
     dd
   }
+
   ###################
 
-  #actually reconstrunctanting dd
-  #getting quantities needed from pamrfit
+  #actually getting all the quantities needed to compute D(i,g)
+  #similar to what pamr.predict does inside pamr package
+
+  norm.cen <- pamrfit$norm.cen  #to handle if hetero is specified in pamr fitting
+  if(!is.null(norm.cen)) {
+    data$x <- abs(t(scale(t(data$x), center = norm.cen, scale = FALSE)))
+  }
 
   if (is.null(pamrfitcv)) { #it means we have a classic pamr.train object
-
 
   centroids=pamrfit$centroids #centroids per variable per class
   centroid.overall=pamrfit$centroid.overall
@@ -230,21 +239,29 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #getting deltas (dik)
   delta <- (centroids - centroid.overall)/sd
   delta <- scale(delta, FALSE, threshold.scale * se.scale) #gives division by mk
+
+  #handling sign contrast
+  if(pamrfit$sign.contrast=="positive"){delta <- delta*(delta>0)}
+  if(pamrfit$sign.contrast=="negative"){delta <- delta*(delta<0)}
+
   #getting the shrunken ones (d'ik)
   delta.shrunk=soft.shrink(delta,threshold) #we have a problem here, all zero
   #getting d'ik*mk
   delta.shrunk <- scale(delta.shrunk, FALSE, 1/(threshold.scale * se.scale))
-  nonzero_check <- attr(delta.shrunk, "nonzero")
+
+
+  nonzero_check <- attr(delta.shrunk, "nonzero") #check added for debugging purposing
   if(!nonzero_check==nonzero){
     stop(nonzero_check)
   }
-  posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
-  xtest<-data$x #NBNB we evaluate directly to train set here #in VCR.pamr.newdata or pamrcv probably needs to be modified
-  dd <- mdS2((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
+
+  posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0 #to store non zero gene/variable positions
+
+  distToClass <- mdS2((data$x - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
 
   } else { #it means we have a pamr.cv, so different process to reconstruct dd
 
-    dd=matrix(NA, nrow=n , ncol=nlab) #defining the matrix contain dd (n x k)
+    distToClass=matrix(NA, nrow=n , ncol=nlab) #defining the matrix contain dd (n x k)
     for (nf in 1:length(pamrfitcv$folds)) {
 
       pamrfits=pamrfitcv$cv.objects[[nf]] #retrieve training object for the given fold in the loop
@@ -258,6 +275,10 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
       nonzero=pamrfits$nonzero[ii]
       K=length(prior)
 
+      #handling sign contrast
+      if(pamrfit$sign.contrast=="positive"){delta <- delta*(delta>0)}
+      if(pamrfit$sign.contrast=="negative"){delta <- delta*(delta<0)}
+
       #getting deltas (dik)
       delta <- (centroids - centroid.overall)/sd
       delta <- scale(delta, FALSE, threshold.scale * se.scale) #gives division by mk
@@ -265,43 +286,38 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
       delta.shrunk=soft.shrink(delta,threshold) #we have a problem here, all zero
       #getting d'ik*mk
       delta.shrunk <- scale(delta.shrunk, FALSE, 1/(threshold.scale * se.scale))
-      nonzero_check <- attr(delta.shrunk, "nonzero")
+
+      nonzero_check <- attr(delta.shrunk, "nonzero") #check for debug
       if(!nonzero_check==nonzero){
         stop(nonzero_check)
       }
+
       posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
-      xtest<-data$x[,pamrfitcv$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
+      xfold<-data$x[,pamrfitcv$folds[[nf]]] #I want dd only in the obvs considered as test in that fold
                                          # this is done following the logic inside nsccv ( called in pamr.cv) where for each fold nsc is called with x (obvs in train) and xtest the obvs considered as test
                                          # then in nsc xtest in called in dd (as here below)
-      dd[pamrfitcv$folds[[nf]],] <- mdS2((xtest - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
-
-
+      distToClass[pamrfitcv$folds[[nf]],] <- mdS2((xfold - centroid.overall)/sd, delta.shrunk, prior, weight = posid)
     }
   }
 
-  if (any(is.na(dd))) { ##CHECK PUT FOR DEVELOPING REASONS PROBABLY COULD REMOVE
-    stop(dd)
+  if (any(is.na(distToClass))) { # check for debug
+    stop("Calculated distToClass has NAs")
   }
 
-  initfig<-(-dd) #minus because wrt to paper is with opposite sign here
+  distToClass<-(-distToClass) #minus because wrt to paper sense is with opposite sign here
 
-  #if (min(initfig)<0){ #shift to all positive values to try box cox transformation
-  #  initfig=initfig-(min(initfig))+3000
-  #}
+  rd=pamrfit$nonzero[ii] #getting reduced dimension
 
-  #initfig=initfig+10 #TRYING TRANSFORMING DD TO SEE RESULTS
-  #initfig=log(initfig)
-
-  rd=pamrfit$nonzero[ii] #getting reducted dimension
-  farout <- compFarness(type = "affine", testdata = FALSE, yint = yint,
-                        nlab = nlab, X = NULL, fig = initfig,
-                        d = NULL, figparams = NULL) #DON'T REALLYU KNOW IF TO FEED OR NOT D
+  farout <- compFarness(type = "affine", testdata = FALSE, yint = yint, #with affine we can feed our matrix D(i,g) and estimation process according to paper is brought up
+                        nlab = nlab, X = NULL, fig = distToClass,
+                        d = NULL, figparams = NULL)
 
   figparams <- farout$figparams
   figparams$ncolX <- d
 
   ####################################################
-  # calculating pairwise distances, for additional visualization feature
+  # calculating pairwise distances, for additional visualization feature MDScolorScape
+  # thios could probably slow in computation with low thresholds (all genes)
 
   pw_mdS2 <-function(x, sd, prior, weight) { #pairwise mahalobis squared
     if(! missing(weight)) {
@@ -326,7 +342,8 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
     pwd
   }
 
-  #pwd=pw_mdS2(xtest, sd, weight=posid)
+  #pwd=pw_mdS2(xtest, sd, weight=posid) #for now it is inactive
+
   ###############################################
 
   return(list(X = X,
@@ -346,7 +363,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
               pamrfitcv = pamrfitcv, #needed to test in vcr.pamr.newdata whether vcr.pamr.train out is right
               threshold = threshold, #effective threshold used
               ii=ii, #number of threshold selected
-              initfig=initfig, #INITFIG ADDED FOR TEST
+              distToClass=distToClass, #added for debug
               posid=posid, #added for test
               sd=sd#pwd=pwd #pairwise matrix distance for mds
               ))
@@ -395,7 +412,7 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #
   # subsetting to same subset of gene
 
-  #newdata$x=newdata$x[vcr.pamr.train.out$pamrfit$gene.subset , ] #subsetting not needed, not done in pamr.predict
+  #newdata$x=newdata$x[vcr.pamr.train.out$pamrfit$gene.subset , ] #subsetting not needed, not done in pamr.predict, should be already inherited thogh pamrfit from vcr.pamr.out
 
   Xnew <- as.matrix(t(newdata$x))
 
@@ -404,7 +421,7 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   d <- vcr.pamr.train.out$figparams$ncolX
   if (ncol(Xnew) != d) {
     stop(paste0("newdata$x should have ", d,
-                " columns, like the training data$x."))
+                " columns, like the training data($x) feeded in vcr.pamr.train"))
   }
   if (sum(is.na(as.vector(Xnew))) > 0) {
     stop("The coordinate matrix newdata$x contains NA's.")
@@ -413,6 +430,8 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   nlab   <- length(levels) # number of classes
 
   ynew=newdata$y
+
+  # checking labels and producing related quantities
 
   if (is.null(ynew)) ynew <- factor(rep(NA, n), levels = levels)
   checked <- checkLabels(ynew, n, training = FALSE, levels)
@@ -427,17 +446,23 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   # computing posterior using function of pamr called pamr.predict
   probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"))
 
+  #internal check of probs matrix for debugging
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (ncol(probs) == 1) probs <- t(probs) # if new data is 1 object
   if (ncol(probs) != nlab) stop(paste0(
     "The matrix probs should have ", nlab, " columns"))
   if (any(is.na(probs))) stop("probs should not have any NA's.")
-  #
+
   # Compute prediction for all objects in the new data:
   #
   predint <- apply(probs[, , drop = FALSE], 1, which.max)
   #
-  # Compute PAC for all objects with available y:
+  #internal check for debug if max posterior is consistent with prediction
+  if (!identical(as.numeric(predint),as.numeric(pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("class"))))) {
+    stop("predint (by max posterior) and class prediction (from pamr predict) do not match")
+  }
+
+  # Compute PAC for all objects with available ynew:
   #
   ptrue <- palt <- altint <- PAC <- rep(NA, n)
   if (nvis > 0) { # if there are new data with labels
@@ -456,8 +481,17 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
     # (PAC and altint stay NA outside indsv)
   }
   #
+  #
+  #
+  #
   # Compute farness:
   #
+  # Build D(x,g) taking as reference discriminant score (and then do as classmap do for DA beacuse pamr can be seen as particular case of DA)
+  #
+
+  #### Auxillary functions needed: ###############
+
+  #function that allows shrinkcage #internal function of pamr package
   soft.shrink <-function(delta, threshold) {
     dif <- abs(delta) - threshold
     delta <- sign(delta) * dif * (dif > 0)
@@ -466,6 +500,9 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
     delta
   }
 
+  #function that calculates diagonal discriminant used to then assign and
+  #compute posteriors (here only kept to have inspiration to compute measure D(i,g) and build function just below)
+  #internal function of pamr package
   diag.disc.original <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
@@ -487,6 +524,7 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
     scale(dd, dd0, FALSE)
   }
 
+  #function actually used to compute D(i,g) distance of an observation to the class
   mdS2 <-function(x, centroids, prior, weight) {
     ### Computes the class discriminant functions assuming scaled x and centroids
     if(! missing(weight)) {
@@ -511,17 +549,24 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
     }
     dd
   }
-  ###################
 
-  #actually reconstrunctanting dd
-  #getting quantities needed from pamrfit
-  pamrfit=vcr.pamr.train.out$pamrfit
+  ################### end of auxillary functions needed
+
+  #actually getting all the quantities needed to compute D(i,g)
+  #similar to what pamr.predict does inside pamr package
+
+  pamrfit=vcr.pamr.train.out$pamrfit #setting pamrfit object
   ii=vcr.pamr.train.out$ii
 
+  norm.cen <- pamrfit$norm.cen  #to handle if hetero is specified in pamr fitting
+  if(!is.null(norm.cen)) {
+    data$x <- abs(t(scale(t(data$x), center = norm.cen, scale = FALSE)))
+  }
+
+  #check that vcr.pamr.out is done on pamr.train and not on pamr.cv (could also make separate vcr.pamr.cv function)
   if (!is.null(vcr.pamr.train.out$pamrfitcv)){
     stop("The vcr.pamr.train.out feeded is calculated on pamr.cv object and not on pamr.train object")
   }
-
 
   centroids=pamrfit$centroids #centroids per variable per class
   centroid.overall=pamrfit$centroid.overall
@@ -536,29 +581,35 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #getting deltas (dik)
   delta <- (centroids - centroid.overall)/sd
   delta <- scale(delta, FALSE, threshold.scale * se.scale) #gives division by mk
+
+  #handling sign contrast
+  if(pamrfit$sign.contrast=="positive"){delta <- delta*(delta>0)}
+  if(pamrfit$sign.contrast=="negative"){delta <- delta*(delta<0)}
+
   #getting the shrunken ones (d'ik)
   delta.shrunk=soft.shrink(delta,threshold) #we have a problem here, all zero
   #getting d'ik*mk
   delta.shrunk <- scale(delta.shrunk, FALSE, 1/(threshold.scale * se.scale))
-  nonzero_check <- attr(delta.shrunk, "nonzero")
+
+  nonzero_check <- attr(delta.shrunk, "nonzero") #check for debug reasons
   if(!nonzero_check==nonzero){
     stop(nonzero_check)
   }
+
   posid <- drop(abs(delta.shrunk) %*% rep(1, K)) > 0
   newDistToClass <- mdS2((newdata$x - centroid.overall)/sd, delta.shrunk, prior, weight = posid) #since the fucntion assumes scaled x, xnew is scale before
 
-
-  if (any(is.na(newDistToClass))) { ##CHECK PUT FOR DEVELOPING REASONS PROBABLY COULD REMOVE
+   if (any(is.na(newDistToClass))) { #check for debug reasons
     stop("newDistToClass has NAs")
   }
 
   newDistToclass=-newDistToClass #minus because wrt to paper is with opposite sign here
 
-  rd=pamrfit$nonzero[ii] #getting reducted dimension
+  rd=pamrfit$nonzero[ii] #getting reduced dimension
 
   farout <- compFarness(type = "affine", testdata = TRUE, yint = yintnew,
                         nlab = nlab, X = NULL, fig = newDistToclass,
-                        d = NULL, figparams = vcr.pamr.train.out$figparams) #DON'T REALLYU KNOW IF TO FEED OR NOT D
+                        d = NULL, figparams = vcr.pamr.train.out$figparams)
 
 
 
