@@ -50,7 +50,7 @@ classmap(vcrpamrcv, whichclass=4)
 
 # Predicting test set
 ?pamr.predict
-ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6.473032, type="class")
+ypred=pamr.predict(fit=pamr, newx=testdata$x, threshold=6.212, type="class")
 table(ypred,testdata$y) #all correct
 testpost=pamr.predict(fit=pamr, newx=testdata$x, threshold=6.473032, type="posterior") #not needed
 as.numeric(apply(testpost[, , drop = FALSE], 1, which.max))
@@ -75,8 +75,8 @@ classmap(vcrpamrtest, whichclass=4)
 labels=unlist(pamr$yhat[20], use.names = FALSE)
 colors <- c("red", "green", "cyan","purple")
 col_vec <- colors[match(labels, c("  1", "  2", "  3", "  4"))]
-labels=as.numeric(as.factor(data$y))
-col_vec_true = colors[match(data$y, c("  1", "  2", "  3", "  4"))]
+labels=as.numeric(as.factor(traindata$y))
+col_vec_true = colors[match(traindata$y, c("  1", "  2", "  3", "  4"))]
 
 intens=rep(NA,length(col_vec_true))
 for (i in 1:length(col_vec_true)){
@@ -86,9 +86,9 @@ for (i in 1:length(col_vec_true)){
 
 posid=vcrpamr$posid
 sd=vcrpamr$sd
-n=ncol(data$x)
+n=ncol(traindata$x)
 sdr=sd[posid]
-xr=data$x[posid,]
+xr=traindata$x[posid,]
 pairwiser=matrix(NA, nrow = n, ncol = n)
 xr<- t(apply(t(xr), 1, function(x) x / sdr))
 pairwiser=dist(xr)
@@ -100,8 +100,21 @@ x<- t(apply(t(data$x), 1, function(x) x / sd))
 pairwise=dist(x)
 
 mds=cmdscale(pairwiser, k=2)
-plot(mds, col=col_vec_true, pch=21, bg=intens, cex=0.8)
+plot(mds, col=col_vec_true, pch=21, bg=intens, cex=1.2)
 
+mdsColorscale(vcrpamr, pairwiser)
+
+posid=vcrpamr$posid
+sd=vcrpamr$sd
+n=ncol(testdata$x)
+sdr=sd[posid]
+xr=testdata$x[posid,]
+pairwiser=matrix(NA, nrow = n, ncol = n)
+xr<- t(apply(t(xr), 1, function(x) x / sdr))
+pairwiser=dist(xr)
+
+plot(cmdscale(pairwiser))
+mdsColorscale(vcrpamrtest, pairwiser)
 
 ##########################################################
 
