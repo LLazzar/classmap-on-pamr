@@ -102,7 +102,7 @@ pairwise=dist(x)
 mds=cmdscale(pairwiser, k=2)
 plot(mds, col=col_vec_true, pch=21, bg=intens, cex=1.2)
 
-mdsColorscale(vcrpamr, pairwiser)
+mdsColorscale(vcrpamr, pairwiser, size=4)
 
 posid=vcrpamr$posid
 sd=vcrpamr$sd
