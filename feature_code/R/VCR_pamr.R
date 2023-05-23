@@ -15,23 +15,28 @@ library(pamr) #to get pamr.predict for newdata function, in package can just imp
 
 vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #
-  # Using the outputs of just pamr.train (or of pamr.cv) for classification
-  # applied to the training data, this function prepares for
+  # Using the outputs of just pamr.train (or also in addition pamr.cv) for classification
+  # applied to the training/cv data, this function prepares for
   # graphical displays.
   #
   #
-  # putted pamrfit object just like forest.vcr takes forest fit
+  # putted pamrfit object just like vcr.forest takes forest fit
   #
   #
   # Arguments:
-  #   data      : the same input data to pamr (same format) that is a
-  #               list with components: x- an expression genes in the rows,
-  #               samples in the columns), and y- a vector of the class labels
-  #               for each sample. Optional components- genenames, a vector
-  #               of gene names, and geneid- a vector of gene identifiers.
-  #   pamrfit   : the result of a call to pamr.train or pamr.cv
-  #   pamrfitcv :
-  #   threshold : the desired threshold value
+  #   data      : exactly the same input data used in pamr.train that is a
+  #               list with components. -x an expression genes in the rows,
+  #               samples in the columns). y- a factor with the class labels
+  #               for each sample. Here data$y should be a factor and possibly you should be factorize and the begininning
+  #               of the processing because the levels should be in the same order as
+  #               used by pamr.train. Additional components: -genenames, a vector
+  #               of gene names, and -geneid a vector of gene identifiers.
+  #   pamrfit   : the result of a call to pamr.train.
+  #   pamrfitcv : optional. the result of a call to pamr.cv, then pamrfit should be
+  #               the same as the one given to pamr.cv and the crossvalidated results
+  #               are considered
+  #   threshold : the desired threshold value at which to evaluate. Then is taken the first theshold
+  #               value in the evaluated grid by pamr greater then theee threshold inserted
   #
   # Returns:
   #   yint      : given labels as integer 1, 2, 3, ...
@@ -44,10 +49,6 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #   altint    : alternative class as integer, i.e. the non-given
   #               class number with the highest mixture density.
   #   altlab    : alternative class of each object.
-  #   classMS   : list with center and covariance matrix of each class
-  #   PAC       : probability of alternative class for each object
-  #   PCAfits   : if not NULL, PCA fits to each class, estimated from
-  #               the training data but also useful for new data.
   #   figparams : parameters for computing fig, can be used for
   #               new data.
   #   fig       : distance of each object i from each class g.
@@ -79,7 +80,10 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   d <- ncol(X)
   if (n < 2) stop("The training data should have more than one case.")
 
-  y=as.factor(data$y) #FACTORIZE IT OR NOT?
+  if (!is.factor(data$y)) {
+    stop("data$y is not a factor")
+  }
+  y=data$y #FACTORIZE IT OR NOT?
 
   # Check whether y and its levels are of the right form:
   checked <- checkLabels(y, n, training = TRUE) #PROBABLY SHOULD RE DIG DEEP TO UNDERSTAND THIS FUNCTION
@@ -319,7 +323,7 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   # calculating pairwise distances, for additional visualization feature MDScolorScape
   # thios could probably slow in computation with low thresholds (all genes)
 
-  pw_mdS2 <-function(x, sd, prior, weight) { #pairwise mahalobis squared
+  pw_mdS2 <-function(x, sd, prior, weight) { #pairwise mahalanbis squared
     if(! missing(weight)) {
       posid <- (weight > 0)
       if(any(posid)) {
@@ -358,35 +362,31 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
               figparams = figparams,
               fig = farout$fig,
               farness = farout$farness,
-              ofarness = farout$ofarnes,
+              ofarness = farout$ofarness,
               pamrfit = pamrfit, #needed for computations in vcr.pamr.newdata
               pamrfitcv = pamrfitcv, #needed to test in vcr.pamr.newdata whether vcr.pamr.train out is right
               threshold = threshold, #effective threshold used
-              ii=ii, #number of threshold selected
-              distToClass=distToClass, #added for debug
-              posid=posid, #added for test
-              sd=sd#pwd=pwd #pairwise matrix distance for mds
+              ii=ii #number of threshold selected
+              #distToClass=distToClass, #added for debug
+              #posid=posid, #posid and sd could be added for outside pairwise dissimilarity computation
+              #sd=sd
               ))
 }
 
-vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.train.out$threshold, prior=NULL, threshold.scale=NULL){
+vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, prior=NULL){ #threshold scale and specific threshold (in pamr.predict available) not feeded here because then it would imply to recalculate all figparams, in vcrpamrout figparams are computed on the specific threshold
   #
-  # Prepares graphical display of new data fitted by a neural
-  # net that was modeled on the training data, using the output
-  # of vcr.pamr.train() on the training data.
+  # Prepares graphical display of new data fitted by pamr that was modeled on the training data,
+  # using the output of vcr.pamr.train() on the training data and predicting newdata at the same threshold.
   #
   # Arguments:
-  #   Xnew                 : data matrix of the new data, with the
-  #                          same number of columns d as in the
-  #                          training data.
-  #                          Missing values are not allowed.
-  #   ynew                 : factor with class membership of each new
-  #                          case. Can be NA for some or all cases.
-  #                          If NULL, is assumed to be NA everywhere.
-  #   probs                : posterior probabilities obtained by
-  #                          running the neural net on the new data.
-  #   vcr.neural.train.out : output of vcr.neural.train() on the
-  #                          training data.
+  #   newdata              :exactly the same input data used in pamr.train that is a
+  #                         list with components. -x an expression genes in the rows,
+  #                         samples in the columns). y- a factor with the class labels
+  #                         for each sample. NB #check label switching # check also what checklabels does for test if it reorders based on the string
+  #                        .Additional components: -genenames, a vector
+  #                         of gene names, and -geneid a vector of gene identifiers.
+  #   vcr.pamr.train.out   :output of vcr.pamr.train on the training data (with pamr.cv=NULL)
+  #   prior                :a different prior to be used in the preidiction, as in pamr.predict allows
   #
   # Returns:
   #   yintnew   : given labels as integers 1, 2, 3, ..., nlab.
@@ -398,11 +398,6 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #   altint    : alternative label as integer if yintnew was given,
   #               else NA.
   #   altlab    : alternative label if yintnew was given, else NA.
-  #   classMS   : list with center and covariance matrix of each class,
-  #               from vcr.neural.train.out
-  #   PAC       : probability of alternative class for each object
-  #               with non-NA yintnew.
-  #   figparams : (from training) parameters used to compute fig
   #   fig       : farness of each object i from each class g.
   #               Always exists.
   #   farness   : farness of each object to its given class, for
@@ -410,8 +405,9 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   #   ofarness  : For each object i, its lowest farness to any
   #               class, including its own. Always exists.
   #
-  # subsetting to same subset of gene
+  #
 
+  #subsetting to same subset of gene
   #newdata$x=newdata$x[vcr.pamr.train.out$pamrfit$gene.subset , ] #subsetting not needed, not done in pamr.predict, should be already inherited thogh pamrfit from vcr.pamr.out
 
   Xnew <- as.matrix(t(newdata$x))
@@ -429,6 +425,9 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   levels <- vcr.pamr.train.out$levels # as in training data
   nlab   <- length(levels) # number of classes
 
+  if (!is.factor(newdata$y)){
+    stop("newdata$y is not a factor. Remember it is better to factorize all together data$y before beginning of pipeline and before splitting to test train.")
+  }
   ynew=newdata$y
 
   # checking labels and producing related quantities
@@ -442,9 +441,17 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, threshold=vcr.pamr.tra
   yintnew <- rep(NA, n)       # needed to overwrite "new" levels.
   yintnew[indsv] <- lab2int(ynew[indsv])
   #
+  #getting the threshold the effective one used in vcr.pamr.train (since here after modle fitted we can predicted on any given punctual threshold value)
+  threshold=vcr.pamr.train.out$threshold
+  #
   #
   # computing posterior using function of pamr called pamr.predict
-  probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"))
+  if (is.null(prior)) { #if prior not specified we do noot feed it, leve default
+    probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"))
+  }
+  else { #prior is specified
+    probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"), prior=prior)
+  }
 
   #internal check of probs matrix for debugging
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
