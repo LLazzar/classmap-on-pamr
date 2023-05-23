@@ -1,15 +1,21 @@
 -polish function (lef out most only inputs/outputs description part)
+-label switching check forestfit
 -add documentation
--FACTOR question in both function, probably: do not factorize and add alert that to pamr should be feeded in same level as in description on vcr.neural, if not factor and throw exception
-question of factor as input or not, if i feed 1="Z" 2 "A" then in factors levels are 1 "A" 2 "Z", see what does pamr
--decide about threshold/prior/threshold scale and other paramters if accesible or not by user in newdata
-BIG PROBLEM OF THREHOLDS! in pamr.predict allow for exact threshold, put that in documentation, but then problem with farness, put in poutput exact threhold use to predict, then also figparams is only calculated on that threhold a farness value will be off, for now deciding that user can't put threshold in vcrmpamr.newdata but we could develop feature that adds threhold (and in invcr.train figparam calculated for eacth threshold in the grid and then in newdata i take figprams nearer, should look also at computation time)
-maybe not putting both prior and threshold scale (they would influence figparams obtained in train?? prior probably not not considered in computing farness))
-also threshhold, changing threhold would mean restimate all the figparamters??? (probably can but in train should go on and compute quantities for all thresholds)
 -put in newdata output set of paramters with pamr.predict is called
 -could write vcr.pamr.cv function instead of one
 -could optimize fact that delta.shrunk,dd, ms2 functions are repeated in both train and newdata
--add output list in newdata with paramters to call exactly equally pamr.predict
+-could add a check to compare data$y with pamrfit$y
+-enable pairwise distance computation
+
+
+
+on the back:
+
+-FACTOR question in both function, probably: do not factorize and add alert that to pamr should be feeded in same level as in description on vcr.neural, if not factor and throw exception DECIDED TO ACCEPT ONLY FACOTR AND TELL DOCUMENTATION NB FACTORIZE AT BEGGINGING OF PIPELINE
+-decide about threshold/prior/threshold scale and other paramters if accesible or not by user in newdata
+BIG PROBLEM OF THREHOLDS! in pamr.predict allow for exact threshold, put that in documentation, but then problem with farness, put in poutput exact threhold use to predict, then also figparams is only calculated on that threhold a farness value will be off, for now deciding that user can't put threshold in vcrmpamr.newdata but we could develop feature that adds threhold (and in invcr.train figparam calculated for eacth threshold in the grid and then in newdata i take figprams nearer, should look also at computation time)
+maybe not putting both prior and threshold scale (they would influence figparams obtained in train?? prior probably not not considered in computing farness))
+also threshhold, changing threhold would mean restimate all the figparamters??? (probably can but in train should go on and compute quantities for all thresholds) DECIDED TO NOT GIVE THE OPTION TO FEED THRESHOLD AND THRESHOLD SCALE (IT WOULD THOROW UP FARNESS COMPUTATION)
 
 DEBUG
 try pamr pamr cv in train
