@@ -69,6 +69,11 @@ vcr.pamr.train <- function(data, pamrfit, pamrfitcv=NULL, threshold) {
   #}
   #
   #
+  #check if inputted dat is the same as the one feeded for the pamrfit object
+  if (!identical(data$y,pamrfit$y)) {
+    stop("Inputted data is not the same data inputted for creating the inputted pamrfit object")
+  }
+
   X <- as.matrix(t(data$x)) # in case it is a data frame
                             # also transpose back since pamr takes rows as variables and columns as observation
                             # IS THIS NECESSARY??
@@ -404,8 +409,8 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, prior=NULL){ #threshol
   #               objects with non-NA yintnew.
   #   ofarness  : For each object i, its lowest farness to any
   #               class, including its own. Always exists.
-  #
-  #
+  #    ......
+
 
   #subsetting to same subset of gene
   #newdata$x=newdata$x[vcr.pamr.train.out$pamrfit$gene.subset , ] #subsetting not needed, not done in pamr.predict, should be already inherited thogh pamrfit from vcr.pamr.out
@@ -643,7 +648,7 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, prior=NULL){ #threshol
               farness = farout$farness,
               ofarness = farout$ofarness,
               threshold=threshold, #effective threshold used in pamr.prediction
-              predictparams=predictparams
+              predictparams=predictparams #parameters used to run pamr.predict inside the function
               ))
 }
 
