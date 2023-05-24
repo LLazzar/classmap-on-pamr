@@ -1,6 +1,6 @@
--add documentation
--could add a check to compare data$y with pamrfit$y
+-still some doubts of farness computation, diag discrimant without log prior is different than mds i defined, should try on lung dataset
 -enable pairwise distance computation
+-add check for pamr.train$prob.type = class
 
 
 
