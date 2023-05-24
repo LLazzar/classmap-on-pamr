@@ -1,20 +1,30 @@
 # Preparing the gene-expr microarray dataset SBCT
+# THIS LABELS SWITCH CAUSING VARIOUS PROBLEM TO THE VISUALIZATIONS!! SILPLOT SUMMARY OK BUT SILPLOT PLOT NOT!
+# VCROUT$YINT, VCROUT$Y ARE OK , PROBLEM RESIDES IN SILPLOT PLOTTING FUNCTION!
+# basically bug come out with name in descending order for the levels, as D C B A and then when there's a missing in newdata (refactorized)
+# problems persist also feeding SBCT dataset to vcr.forest so it is a real problem, advise raymakeers
+#possible sol: do not refactorize test set y that has a missing factor (advise to factorize all together in preprocessing or have the same levels also if they are missing)
+# problem is more general also if factorize altogheter before and remove a class 8but levels ar ethe original, then problem arises,
+# probelm persists also in alphabetic way!!
+# !!!!BUG TO SIGNAL: if testset does not have an label silplot summary is ok but silplot plot legend is off!!!! 8at least when labels are chacters do noit  know if also with numbers)
 
 library(foreign) #to read WEKA arff format
 datar=read.arff("sample_datasets/SRBCT.arff")
 str(datar) #need manipulation to get to work with pamR
+set.seed(123)
 train_indices <- sample(nrow(datar), nrow(datar) * 0.8)  # 70% for training
 traindata=list() #pamr wants list
 traindata$y=datar[train_indices,ncol(datar)]
 traindata$x=datar[train_indices,1:(ncol(datar)-1)]
 traindata$x=t(traindata$x) #pamr wants nvariable x obervations
-levels(traindata$y)=c("D","C","B","A") #1=D
+levels(traindata$y)=c("A","B","C","D") #1=D
 str(traindata$x)
 str(traindata$y)
 testdata=list()
 testdata$y=datar[-train_indices,ncol(datar)]
 testdata$x=datar[-train_indices,1:(ncol(datar)-1)]
 testdata$x=t(testdata$x) #pamr wants nvariable x obervations
+levels(testdata$y)=c("A","B","C","D")
 str(testdata$x)
 str(testdata$y)
 
@@ -59,16 +69,17 @@ ypred
 
 #Visualizing on the test set though classmap
 newdatat=list()
-newdatat$y=factor(as.numeric(testdata$y[-c(4,5,17)]))
-levels(newdatat$y)=c("D", "B", "A")
-newdatat$x=testdata$x[,-c(4,5,17)]
-vcrpamrtest=vcr.pamr.newdata(newdata = testdata, vcr.pamr.train.out = vcrpamr )
+newdatat$y=testdata$y[-c(6,15,16)]
+#levels(newdatat$y)=c("A", "B", "D")
+newdatat$x=testdata$x[,-c(6,15,16)]
+#vcrpamrtest=vcr.pamr.newdata(newdata = testdata, vcr.pamr.train.out = vcrpamr )
 vcrpamrtest=vcr.pamr.newdata(newdata = newdatat, vcr.pamr.train.out = vcrpamr )
 
 ## silhouette visual plot
 library(classmap)
 ?silplot #takes in a vcr out
-silplot(vcrpamrtest) #classLabels = c("EWS","BL","NB","RMS") if you have names
+########################################################################################################################################
+silplot(vcrpamrtest)  #HERE'S THE BUGGG
 
 ## classmap/farness plot visual
 ?classmap
