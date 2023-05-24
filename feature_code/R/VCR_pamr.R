@@ -453,6 +453,17 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, prior=NULL){ #threshol
     probs=pamr.predict(vcr.pamr.train.out$pamrfit, newx=newdata$x, threshold=threshold, type = c("posterior"), prior=prior)
   }
 
+  predictparams=list()
+  predictparams$fit=vcr.pamr.train.out$pamrfit
+  predictparams$newx=newdata$x
+  predictparams$threshold=threshold
+  if (!is.null(prior)) {
+    predictparams$prior=prior
+  }
+
+  #ESSENTIAL CHECK TO REORDER POSTERIORS ???
+  #probs <- probs[, order(lab2int(colnames(probs)))] àcould do additional checks
+
   #internal check of probs matrix for debugging
   if (length(dim(probs)) != 2) stop("probs should be a matrix.")
   if (ncol(probs) == 1) probs <- t(probs) # if new data is 1 object
@@ -631,7 +642,8 @@ vcr.pamr.newdata <- function(newdata, vcr.pamr.train.out, prior=NULL){ #threshol
               fig = farout$fig,
               farness = farout$farness,
               ofarness = farout$ofarness,
-              threshold=threshold #effective threshold used in pamr.prediction
+              threshold=threshold, #effective threshold used in pamr.prediction
+              predictparams=predictparams
               ))
 }
 
