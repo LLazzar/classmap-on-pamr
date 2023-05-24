@@ -3,6 +3,7 @@
 library(foreign) #to read WEKA arff format
 datar=read.arff("sample_datasets/SRBCT.arff")
 str(datar) #need manipulation to get to work with pamR
+set.seed(123)
 train_indices <- sample(nrow(datar), nrow(datar) * 0.8)  # 70% for training
 traindata=list() #pamr wants list
 traindata$y=datar[train_indices,ncol(datar)]
