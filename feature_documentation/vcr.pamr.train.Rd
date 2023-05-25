@@ -14,15 +14,15 @@ vcr.pamr.train(data, pamrfit, pamrfitcv=NULL, threshold)
 %- maybe also 'usage' for other objects documented here.
 \arguments{
 
-\item{data}{Exactly the same input data used in pamr.train that is a list with components: $x: with genes expression levels in the rows (samples in the columns); $y is required to be factor with the class labels for each sample. Data should be feeded to \code{pamr.train} already factorized. Additional components: $genenames, a vector of gene names, and $geneid a vector of gene identifiers.}
-\item{pamrfit}{The output of a \code{pamr::pamr.train} run}
+\item{data}{Exactly the same input data used to produce \code{pamrfit}, that is a list with components: \code{$x} with genes expression levels in the rows (samples in the columns); \code{$y} is REQUIRED to be factor with the class labels for each sample. Data should be feeded to \code{pamr.train} already factorized. Additional components: $genenames, a vector of gene names, and $geneid a vector of gene identifiers.}
+\item{pamrfit}{The output of a \code{pamr::pamr.train} fit on \code{data}}
 \item{pamrfitcv}{The output of a \code{pamr::pamr.cv} run with the \code{pamrfit} object. If feeded the cross-validated results are prepared for visualization instead of the results on the normal training process. Default is \code{NULL}}
 \item{threshold}{Define the threshold at which training classification results are to be evaluated. This is because \code{pamrfit} includes multiple models, each linked to a unique threshold from a vector of discrete values. The first threshold value in \code{pamrfit}, exceeding the inputted \code{threshold}, is selected.}
 }
 
 
 \value{
-A list with components: \cr
+A list with components:
   \item{yint}{number of the given class of each case.}
   \item{y}{given class label of each case.}
   \item{levels}{levels of \code{y}}
@@ -32,22 +32,22 @@ A list with components: \cr
   \item{altlab}{label of the alternative class. Is \code{NA} for cases whose \code{y} is missing.}
   \item{fig}{farness of each case \eqn{i} from each class \eqn{g}. Is \code{NULL} if distToClass is not feeded.}
   \item{farness}{farness of each case from its given/true class. Is \code{NULL} if distToClass is not feeded.}
-  \item{ofarness}{for each case \code{i}, its lowest  \code{fig[i,g]} to any class \code{g}. Is \code{NULL} if distToClass is not feeded.}
-}
+  \item{ofarness}{for each case \eqn{i}, its lowest \eqn{fig[i,g]} to any class \code{g}. Is \code{NULL} if distToClass is not feeded.}
   \item{pamrfit}{The \code{pamrfit} object taken as input.}
   \item{pamrfitcv}{The \code{pamrfitcv} object taken as input, if provided.}
   \item{threshold}{The effective threshold value evaluated.}
   \item{ii}{The index of the threshold value evaluated.}
 }
+
 \references{--add paper at release}
-}
+
 
 \author{
- Lazzari. L, Raymaekers J., Rousseeuw P.J.
+ Lazzari. L.
 }
 
 \seealso{
-\code{\link{vcr.pamr.newdata}}, \code{\link{classmap}}, \code{\link{silplot}}, \code{\link{stackedplot}, \code{\link{mdscolorscale}, \code{\link{qresplot}}
+\code{\link{vcr.pamr.newdata}}, \code{\link{classmap}}, \code{\link{silplot}}, \code{\link{stackedplot}}, \code{\link{mdscolorscale}}, \code{\link{qresplot}}
 }
 
 \examples{
